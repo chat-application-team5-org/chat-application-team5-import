@@ -4,9 +4,111 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Chat Application</title>
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <h1>Chat Application</h1>
-  <p>Server is running. The client UI is built in CA-15.</p>
+  <header class="app-header">
+    <span class="app-name">Chat Application</span>
+    <div class="header-right">
+      <span id="conn-status" class="conn" data-state="offline" role="status">
+        <span class="dot" aria-hidden="true"></span><span id="conn-text">Offline</span>
+      </span>
+      <button id="about-btn" class="link-btn" type="button">Help / About</button>
+      <button id="logout-btn" class="btn btn-secondary" type="button" hidden>Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Register / Login (SRS 3.1) -->
+    <section id="auth-view" class="auth-view">
+      <div class="card">
+        <div class="tabs" role="tablist">
+          <button id="tab-login" class="tab active" role="tab" aria-selected="true" type="button">Login</button>
+          <button id="tab-register" class="tab" role="tab" aria-selected="false" type="button">Register</button>
+        </div>
+
+        <form id="login-form" novalidate>
+          <div class="field">
+            <label for="login-identifier">Username or email</label>
+            <input id="login-identifier" name="identifier" autocomplete="username" required>
+            <span class="field-error" data-for="login-identifier"></span>
+          </div>
+          <div class="field">
+            <label for="login-password">Password</label>
+            <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+            <span class="field-error" data-for="login-password"></span>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit">Login</button>
+          <p class="switch-text">No account? <a href="#" id="to-register">Register</a></p>
+        </form>
+
+        <form id="register-form" novalidate hidden>
+          <div class="field">
+            <label for="reg-username">Username (3-20 characters)</label>
+            <input id="reg-username" name="username" autocomplete="username" required>
+            <span class="field-error" data-for="reg-username"></span>
+          </div>
+          <div class="field">
+            <label for="reg-email">Email</label>
+            <input id="reg-email" name="email" type="email" autocomplete="email" required>
+            <span class="field-error" data-for="reg-email"></span>
+          </div>
+          <div class="field">
+            <label for="reg-password">Password (8+ characters, a letter and a digit)</label>
+            <input id="reg-password" name="password" type="password" autocomplete="new-password" required>
+            <span class="field-error" data-for="reg-password"></span>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit">Register</button>
+          <p class="switch-text">Already registered? <a href="#" id="to-login">Login</a></p>
+        </form>
+      </div>
+    </section>
+
+    <!-- Chat Home (SRS 3.1) -->
+    <section id="chat-view" class="chat-view" data-pane="list" hidden>
+      <aside id="sidebar" class="sidebar" aria-label="Conversations">
+        <div class="search">
+          <input id="search-input" type="search" placeholder="Search users" aria-label="Search users" autocomplete="off">
+        </div>
+        <h2 class="side-title">Conversations</h2>
+        <ul id="conversation-list" class="list"></ul>
+        <h2 class="side-title">Online</h2>
+        <ul id="online-list" class="list"></ul>
+      </aside>
+
+      <section id="chat-pane" class="chat-pane" aria-label="Conversation">
+        <div class="chat-top">
+          <button id="back-btn" class="icon-btn" type="button" aria-label="Back to conversations">&larr;</button>
+          <div>
+            <div id="chat-title" class="chat-title">Select a conversation</div>
+            <div id="chat-sub" class="chat-sub"></div>
+          </div>
+        </div>
+        <div id="message-pane" class="message-pane" aria-live="polite">
+          <p class="empty">Pick a conversation or search for a user to start chatting.</p>
+        </div>
+        <form id="message-form" class="message-form">
+          <label for="message-input" class="sr-only">Message</label>
+          <textarea id="message-input" rows="1" maxlength="2000" placeholder="Type a message" disabled></textarea>
+          <button id="send-btn" class="btn btn-primary" type="submit" disabled>Send</button>
+        </form>
+      </section>
+    </section>
+  </main>
+
+  <div id="toasts" class="toasts" aria-live="assertive"></div>
+
+  <dialog id="about-dialog" class="dialog">
+    <h2>About</h2>
+    <p>Real-Time Chat Application (Socket Programming), Team 5, PES University.</p>
+    <p>Shortcuts: <b>Enter</b> send message, <b>Shift+Enter</b> new line, <b>Esc</b> close dialog.</p>
+    <button id="about-close" class="btn btn-primary" type="button">Close</button>
+  </dialog>
+
+  <script src="js/ui.js"></script>
+  <script src="js/mock.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ws.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
