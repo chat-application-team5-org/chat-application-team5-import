@@ -1,0 +1,50 @@
+Key,Type,Epic,Summary,Priority,Sprint,Assignee,Status,Labels
+CA-1,Epic,,Project Setup and DevOps,High,,,To Do,setup
+CA-2,Epic,,User Registration and Authentication,High,,,To Do,auth
+CA-3,Epic,,One-to-One Real-Time Messaging,High,,,To Do,messaging
+CA-4,Epic,,Group Chat,High,,,To Do,group
+CA-5,Epic,,"Presence, Typing and Connection Handling",Medium,,,To Do,presence
+CA-6,Epic,,Chat History and Persistence,High,,,To Do,history
+CA-7,Epic,,Delivery Status and Unread Notifications,Medium,,,To Do,status
+CA-8,Epic,,Profile Management and User Search,Low,,,To Do,profile
+CA-9,Epic,,Security and Hardening,High,,,To Do,security
+CA-10,Epic,,"Testing, NFR Verification and Documentation",Medium,,,To Do,"documentation, testing"
+CA-11,Story,CA-2,"Register with validation (REQ-1, REQ-2)",High,Sprint 1,Gagan,To Do,"auth, sprint-1"
+CA-12,Task,CA-1,"Initialise repository, module structure, ESLint, Jest and npm start",High,Sprint 1,Harsh Kalekar,Done,"setup, sprint-1"
+CA-13,Task,CA-1,Set up CI pipeline: lint and tests on every pull request,High,Sprint 1,Dhanush K S,To Do,"setup, sprint-1"
+CA-14,Task,CA-1,"Data Access Layer: Mongoose models, indexes and seed scripts",High,Sprint 1,Chetha Samrutha,Done,"setup, sprint-1"
+CA-15,Task,CA-1,Web client shell: login/register and Chat Home screens,High,Sprint 1,Harsh Kalekar,To Do,"frontend, setup, sprint-1"
+CA-16,Story,CA-2,"Store passwords as salted bcrypt hashes (REQ-3, SEC-2)",High,Sprint 1,Gagan,To Do,"auth, security, sprint-1"
+CA-17,Story,CA-2,Login with username or email and 24-hour JWT (REQ-4),High,Sprint 1,Gagan,To Do,"auth, sprint-1"
+CA-18,Story,CA-2,Generic login error and 15-minute lockout after 5 failures (REQ-5),High,Sprint 1,Gagan,To Do,"auth, security, sprint-1"
+CA-19,Story,CA-2,Authenticated WebSocket connection with auth event and Origin check (REQ-6),High,Sprint 1,Dhanush K S,To Do,"auth, security, sprint-1"
+CA-20,Story,CA-2,Logout closes WebSocket and discards token (REQ-7),High,Sprint 1,Dhanush K S,To Do,"auth, sprint-1"
+CA-21,Story,CA-3,Open or create a private conversation with another user (REQ-8),High,Sprint 1,Chetha Samrutha,Done,"messaging, sprint-1"
+CA-22,Story,CA-3,Real-time delivery of messages over WebSocket (REQ-9),High,Sprint 1,Chetha Samrutha,In Progress,"messaging, sprint-1"
+CA-23,Story,CA-3,"Message validation: 1 to 2,000 characters, no blank messages (REQ-10)",High,Sprint 1,Chetha Samrutha,Done,"messaging, sprint-1"
+CA-24,Story,CA-3,Store and deliver messages to offline recipients (REQ-11),High,Sprint 2,,To Do,"messaging, sprint-2"
+CA-25,Story,CA-3,"Message pane shows sender, time, status and own messages (REQ-12)",High,Sprint 1,Harsh Kalekar,To Do,"frontend, messaging, sprint-1"
+CA-26,Story,CA-3,"Sanitise message content to prevent XSS (REQ-13, SEC-4)",High,Sprint 2,,To Do,"messaging, security, sprint-2"
+CA-27,Story,CA-6,"Persist every message before acknowledging it (REQ-23, SAF-1)",High,Sprint 1,Chetha Samrutha,Done,"history, reliability, sprint-1"
+CA-28,Story,CA-6,Load latest 50 messages and page older history on scroll (REQ-24),High,Sprint 2,,To Do,"history, sprint-2"
+CA-29,Story,CA-4,Create a group with name and members; creator becomes admin (REQ-14),High,Sprint 2,,To Do,"group, sprint-2"
+CA-30,Story,CA-4,"Group message broadcast with sender name (REQ-15, REQ-17)",High,Sprint 2,,To Do,"group, sprint-2"
+CA-31,Story,CA-4,"Membership authorisation on every conversation read and write (REQ-18, SEC-5)",High,Sprint 2,,To Do,"group, security, sprint-2"
+CA-32,Story,CA-4,"Group admin actions: add, remove, rename; member can leave (REQ-16)",High,Sprint 3,,To Do,"group, sprint-3"
+CA-33,Story,CA-5,Online/offline presence with last-seen (REQ-19),Medium,Sprint 2,,To Do,"presence, sprint-2"
+CA-34,Story,CA-5,Typing indicator (REQ-20),Medium,Sprint 2,,To Do,"presence, sprint-2"
+CA-35,Story,CA-5,Ping/pong heartbeat marks broken connections offline within 40 s (REQ-21),Medium,Sprint 2,,To Do,"presence, reliability, sprint-2"
+CA-36,Story,CA-5,Auto reconnect with exponential back-off and message re-sync (REQ-22),Medium,Sprint 2,,To Do,"frontend, presence, reliability, sprint-2"
+CA-37,Story,CA-7,"Sent, delivered and read status ticks in real time (REQ-25, REQ-26)",Medium,Sprint 2,,To Do,"sprint-2, status"
+CA-38,Story,CA-7,"Unread counters and in-app notifications (REQ-27, REQ-28)",Medium,Sprint 3,,To Do,"frontend, sprint-3, status"
+CA-39,Story,CA-8,Search users by partial username and start a chat (REQ-31),Low,Sprint 2,,To Do,"profile, sprint-2"
+CA-40,Story,CA-8,View and edit display name and status message (REQ-29),Low,Sprint 3,,To Do,"profile, sprint-3"
+CA-41,Story,CA-8,Change password after verifying the current one (REQ-30),Low,Sprint 3,,To Do,"profile, security, sprint-3"
+CA-42,Story,CA-9,Rate limiting and frame size limit (SAF-2),High,Sprint 3,,To Do,"security, sprint-3"
+CA-43,Story,CA-9,"TLS (https/wss), secrets handling and dependency audit (SEC-3, SEC-8)",High,Sprint 3,,To Do,"security, sprint-3"
+CA-44,Story,CA-9,"Central error handling, safe logging and health endpoint (SAF-3, SEC-2)",High,Sprint 2,,To Do,"reliability, security, sprint-2"
+CA-45,Task,CA-10,"Performance and load tests: latency, 100 clients, page load (PERF-1 to PERF-5)",High,Sprint 3,,To Do,"performance, sprint-3, testing"
+CA-46,Task,CA-9,"Execute security validation checks (STP 5.1, SEC-1 to SEC-8)",High,Sprint 3,,To Do,"security, sprint-3, testing"
+CA-47,Task,CA-10,"Reliability, backup/restore and usability verification (SAF-3, SAF-4, quality attributes)",Medium,Sprint 3,,To Do,"reliability, sprint-3, testing"
+CA-48,Task,CA-10,"Unit and integration test suites, 70% coverage and RTM updates",High,Sprint 2,,To Do,"sprint-2, testing"
+CA-49,Task,CA-10,"Documentation, test summary report and demo preparation",Medium,Sprint 3,,To Do,"documentation, sprint-3"
