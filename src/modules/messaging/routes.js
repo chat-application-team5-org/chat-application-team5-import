@@ -75,7 +75,10 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// GET /api/conversations/:id/messages?limit=50: recent messages of one chat.
+// GET /api/conversations/:id/messages?limit=50&before=<messageId>
+// Returns one page in oldest-to-newest display order. The opaque cursor is the
+// oldest message ID in the current page; ObjectIds provide the same stable order
+// used by the query and the (conversation, createdAt) history index remains useful.
 router.get('/:id/messages', async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
@@ -89,8 +92,25 @@ router.get('/:id/messages', async (req, res, next) => {
 
     const requested = Number.parseInt(req.query.limit, 10);
     const limit = Math.min(Number.isNaN(requested) || requested < 1 ? DEFAULT_LIMIT : requested, MAX_LIMIT);
-    const messages = await loadRecentMessages(conversation._id, limit);
-    res.status(200).json({ messages });
+    const query = { conversation: conversation._id };
+    if (req.query.before !== undefined) {
+      if (!mongoose.isValidObjectId(req.query.before)) {
+        throw new AppError(400, 'VALIDATION_ERROR', 'A valid before cursor is required.');
+      }
+      query._id = { $lt: new mongoose.Types.ObjectId(req.query.before) };
+    }
+
+    const rows = await Message.find(query)
+      .populate('sender', 'username')
+      .sort({ _id: -1 })
+      .limit(limit + 1);
+    const hasMore = rows.length > limit;
+    const page = rows.slice(0, limit).reverse();
+    res.status(200).json({
+      messages: page,
+      hasMore,
+      nextCursor: hasMore && page.length ? String(page[0]._id) : null,
+    });
   } catch (error) {
     next(error);
   }
