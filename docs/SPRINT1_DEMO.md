@@ -39,4 +39,4 @@ Automated and other verification status:
 - **Lint:** passed locally on the CA-39 search-fix branch.
 - **MongoDB integration:** passed in GitHub Actions for the merged Sprint 1 PR. It covers authenticated two-user WebSocket delivery, the `SENT` acknowledgement, MongoDB persistence, and message history after an app-server restart. It was not rerun locally for this demo because the integration test clears its disposable test database.
 - **Performance targets:** not tested; no latency or concurrent-user target is claimed as passed.
-- **Demo video:** not yet recorded or uploaded.
+- **Demo video:** recorded, downloaded, and played back successfully, then uploaded to the repository at [docs/Team5_Sprint1_Chat_Demo.mp4.mp4](Team5_Sprint1_Chat_Demo.mp4.mp4) on 22 October 2026. The filename currently has the `.mp4` extension twice; the uploaded file downloaded and played successfully.

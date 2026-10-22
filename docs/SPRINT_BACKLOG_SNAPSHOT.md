@@ -1,8 +1,8 @@
-# Jira Product Backlog - Chat Application (Team 5)
+# GitHub Sprint Backlog Snapshot - Chat Application (Team 5)
 
-Exported from Jira project **CA** (Chat Application). Snapshot date: 07 Oct 2026.
+This file preserves the team's sprint/backlog snapshot dated 7 October 2026 as historical planning context. The team uses GitHub sprint/task tracking, issues, and pull requests for current work. **Statuses in the tables below are from the 7 October snapshot and are not current-status claims.** Check the live GitHub task tracking before acting on any status.
 
-**10 epics, 39 stories/tasks** (5 done). Requirement IDs (REQ, PERF, SAF, SEC) refer to the SRS; test case IDs are in the Test Plan.
+**10 epics, 39 stories/tasks** (5 marked done in the 7 October snapshot). Requirement IDs (REQ, PERF, SAF, SEC) refer to the SRS; test case IDs are in the Test Plan.
 
 ## Sprint plan summary
 
@@ -25,7 +25,7 @@ Exported from Jira project **CA** (Chat Application). Snapshot date: 07 Oct 2026
 
 ### CA-1: Project Setup and DevOps
 
-| Key | Type | Summary | Priority | Sprint | Assignee | Status |
+| Key | Type | Summary | Priority | Sprint | Assignee | Status (7 Oct snapshot) |
 |---|---|---|---|---|---|---|
 | CA-12 | Task | Initialise repository, module structure, ESLint, Jest and npm start | High | Sprint 1 | Harsh Kalekar | Done |
 | CA-13 | Task | Set up CI pipeline: lint and tests on every pull request | High | Sprint 1 | Dhanush K S | To Do |
@@ -34,7 +34,7 @@ Exported from Jira project **CA** (Chat Application). Snapshot date: 07 Oct 2026
 
 ### CA-2: User Registration and Authentication
 
-| Key | Type | Summary | Priority | Sprint | Assignee | Status |
+| Key | Type | Summary | Priority | Sprint | Assignee | Status (7 Oct snapshot) |
 |---|---|---|---|---|---|---|
 | CA-11 | Story | Register with validation (REQ-1, REQ-2) | High | Sprint 1 | Gagan | To Do |
 | CA-16 | Story | Store passwords as salted bcrypt hashes (REQ-3, SEC-2) | High | Sprint 1 | Gagan | To Do |
@@ -45,7 +45,7 @@ Exported from Jira project **CA** (Chat Application). Snapshot date: 07 Oct 2026
 
 ### CA-3: One-to-One Real-Time Messaging
 
-| Key | Type | Summary | Priority | Sprint | Assignee | Status |
+| Key | Type | Summary | Priority | Sprint | Assignee | Status (7 Oct snapshot) |
 |---|---|---|---|---|---|---|
 | CA-21 | Story | Open or create a private conversation with another user (REQ-8) | High | Sprint 1 | Chetha Samrutha | Done |
 | CA-22 | Story | Real-time delivery of messages over WebSocket (REQ-9) | High | Sprint 1 | Chetha Samrutha | In Progress |
@@ -56,7 +56,7 @@ Exported from Jira project **CA** (Chat Application). Snapshot date: 07 Oct 2026
 
 ### CA-4: Group Chat
 
-| Key | Type | Summary | Priority | Sprint | Assignee | Status |
+| Key | Type | Summary | Priority | Sprint | Assignee | Status (7 Oct snapshot) |
 |---|---|---|---|---|---|---|
 | CA-29 | Story | Create a group with name and members; creator becomes admin (REQ-14) | High | Sprint 2 | - | To Do |
 | CA-30 | Story | Group message broadcast with sender name (REQ-15, REQ-17) | High | Sprint 2 | - | To Do |
@@ -65,7 +65,7 @@ Exported from Jira project **CA** (Chat Application). Snapshot date: 07 Oct 2026
 
 ### CA-5: Presence, Typing and Connection Handling
 
-| Key | Type | Summary | Priority | Sprint | Assignee | Status |
+| Key | Type | Summary | Priority | Sprint | Assignee | Status (7 Oct snapshot) |
 |---|---|---|---|---|---|---|
 | CA-33 | Story | Online/offline presence with last-seen (REQ-19) | Medium | Sprint 2 | - | To Do |
 | CA-34 | Story | Typing indicator (REQ-20) | Medium | Sprint 2 | - | To Do |
@@ -74,21 +74,21 @@ Exported from Jira project **CA** (Chat Application). Snapshot date: 07 Oct 2026
 
 ### CA-6: Chat History and Persistence
 
-| Key | Type | Summary | Priority | Sprint | Assignee | Status |
+| Key | Type | Summary | Priority | Sprint | Assignee | Status (7 Oct snapshot) |
 |---|---|---|---|---|---|---|
 | CA-27 | Story | Persist every message before acknowledging it (REQ-23, SAF-1) | High | Sprint 1 | Chetha Samrutha | Done |
 | CA-28 | Story | Load latest 50 messages and page older history on scroll (REQ-24) | High | Sprint 2 | - | To Do |
 
 ### CA-7: Delivery Status and Unread Notifications
 
-| Key | Type | Summary | Priority | Sprint | Assignee | Status |
+| Key | Type | Summary | Priority | Sprint | Assignee | Status (7 Oct snapshot) |
 |---|---|---|---|---|---|---|
 | CA-37 | Story | Sent, delivered and read status ticks in real time (REQ-25, REQ-26) | Medium | Sprint 2 | - | To Do |
 | CA-38 | Story | Unread counters and in-app notifications (REQ-27, REQ-28) | Medium | Sprint 3 | - | To Do |
 
 ### CA-8: Profile Management and User Search
 
-| Key | Type | Summary | Priority | Sprint | Assignee | Status |
+| Key | Type | Summary | Priority | Sprint | Assignee | Status (7 Oct snapshot) |
 |---|---|---|---|---|---|---|
 | CA-39 | Story | Search users by partial username and start a chat (REQ-31) | Low | Sprint 2 | - | To Do |
 | CA-40 | Story | View and edit display name and status message (REQ-29) | Low | Sprint 3 | - | To Do |
@@ -96,7 +96,7 @@ Exported from Jira project **CA** (Chat Application). Snapshot date: 07 Oct 2026
 
 ### CA-9: Security and Hardening
 
-| Key | Type | Summary | Priority | Sprint | Assignee | Status |
+| Key | Type | Summary | Priority | Sprint | Assignee | Status (7 Oct snapshot) |
 |---|---|---|---|---|---|---|
 | CA-42 | Story | Rate limiting and frame size limit (SAF-2) | High | Sprint 3 | - | To Do |
 | CA-43 | Story | TLS (https/wss), secrets handling and dependency audit (SEC-3, SEC-8) | High | Sprint 3 | - | To Do |
@@ -105,12 +105,13 @@ Exported from Jira project **CA** (Chat Application). Snapshot date: 07 Oct 2026
 
 ### CA-10: Testing, NFR Verification and Documentation
 
-| Key | Type | Summary | Priority | Sprint | Assignee | Status |
+| Key | Type | Summary | Priority | Sprint | Assignee | Status (7 Oct snapshot) |
 |---|---|---|---|---|---|---|
 | CA-45 | Task | Performance and load tests: latency, 100 clients, page load (PERF-1 to PERF-5) | High | Sprint 3 | - | To Do |
 | CA-47 | Task | Reliability, backup/restore and usability verification (SAF-3, SAF-4, quality attributes) | Medium | Sprint 3 | - | To Do |
 | CA-48 | Task | Unit and integration test suites, 70% coverage and RTM updates | High | Sprint 2 | - | To Do |
 | CA-49 | Task | Documentation, test summary report and demo preparation | Medium | Sprint 3 | - | To Do |
 
+---
 
-The live board is the source of truth; re-export this file at the end of each sprint.
+Review this snapshot against the live GitHub sprint/task tracking before relying on any status. Refresh the snapshot at the end of each sprint.
