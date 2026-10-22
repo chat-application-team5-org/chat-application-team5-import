@@ -58,5 +58,5 @@ Never commit `.env`, passwords or tokens.
 |---|---|
 | Harsh Kalekar | PES1UG24CS183 |
 | Chetha Samrutha | PES1UG24CS131 |
-| Gagan Eswar | [SRN] |
-| Dhanush | [SRN] |
+| Gagan Eswar | PES1UG24CS165 |
+| Dhanush | PES1UG24CS148 |
