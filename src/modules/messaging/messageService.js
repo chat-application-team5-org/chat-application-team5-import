@@ -24,6 +24,7 @@ async function sendMessage({ senderId, conversationId, content, clientMsgId }) {
     content,
     clientMsgId,
   });
+  await message.populate('sender', 'username');
 
   const recipientIds = conversation.participants
     .map(String)

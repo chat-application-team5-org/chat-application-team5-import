@@ -1,28 +1,22 @@
 const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
 const config = require('../config');
 const { AppError } = require('./errorHandler');
 
-// Works out who is calling the API.
-// 1) Real login: "Authorization: Bearer <jwt>" (token comes from CA-17).
-// 2) Testing only: an "x-user-id" header, switched off in production.
-// TODO(CA-17): remove the x-user-id fallback once login is merged.
+// The caller identity must come from a signed token, never from a request body
+// or caller-controlled identity header.
 function currentUser(req, _res, next) {
   try {
     const header = req.get('authorization') || '';
-    if (header.startsWith('Bearer ')) {
-      const decoded = jwt.verify(header.slice(7), config.jwtSecret);
-      req.userId = String(decoded.sub || decoded.userId || decoded.id);
-      return next();
+    if (!header.startsWith('Bearer ') || !config.jwtSecret) {
+      throw new AppError(401, 'AUTH_FAILED', 'Authentication required.');
     }
-
-    const testId = req.get('x-user-id');
-    if (process.env.NODE_ENV !== 'production' && mongoose.isValidObjectId(testId)) {
-      req.userId = String(testId);
-      return next();
+    const decoded = jwt.verify(header.slice(7), config.jwtSecret);
+    const userId = decoded.sub || decoded.userId || decoded.id;
+    if (typeof userId !== 'string' || !userId) {
+      throw new AppError(401, 'AUTH_FAILED', 'Authentication required.');
     }
-
-    throw new AppError(401, 'AUTH_FAILED', 'Authentication required.');
+    req.userId = userId;
+    return next();
   } catch (error) {
     if (error instanceof AppError) return next(error);
     return next(new AppError(401, 'AUTH_FAILED', 'Authentication required.'));

@@ -19,10 +19,12 @@ beforeEach(() => {
 
 describe('sendMessage (CA-27)', () => {
   it('saves the message and returns the recipients', async () => {
-    Message.create.mockResolvedValue({ _id: 'm1' });
+    const savedMessage = { _id: 'm1', populate: jest.fn().mockResolvedValue({ _id: 'm1' }) };
+    Message.create.mockResolvedValue(savedMessage);
     const result = await sendMessage({ senderId: sender, conversationId: String(convId), content: 'Hi' });
     expect(Message.create).toHaveBeenCalledTimes(1);
-    expect(result.message).toEqual({ _id: 'm1' });
+    expect(savedMessage.populate).toHaveBeenCalledWith('sender', 'username');
+    expect(result.message).toMatchObject({ _id: 'm1' });
     expect(result.recipientIds).toEqual([String(other)]);
   });
   it('rejects (no success) when the database save fails', async () => {

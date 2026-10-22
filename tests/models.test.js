@@ -10,8 +10,9 @@ const check = (doc) => doc.validate().then(() => undefined, (err) => err);
 
 describe('User model (CA-14)', () => {
   it('accepts a valid user', async () => {
-    const u = new User({ username: 'alice', email: 'A@Example.com', passwordHash: 'hash' });
+    const u = new User({ username: 'Alice', email: 'A@Example.com', passwordHash: 'hash' });
     expect((await check(u))).toBeUndefined();
+    expect(u.username).toBe('alice');
     expect(u.email).toBe('a@example.com');
   });
   it('rejects missing fields', async () => {

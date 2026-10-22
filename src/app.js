@@ -13,6 +13,8 @@ function createApp() {
     res.json({ status: 'ok', uptime: process.uptime(), db: dbState() });
   });
 
+  app.use('/api/auth', require('./modules/auth/routes'));
+
   // Conversations (CA-21)
   app.use('/api/conversations', require('./modules/messaging/routes'));
   app.use(notFound);

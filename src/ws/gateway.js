@@ -5,18 +5,22 @@ const { sendMessage } = require('../modules/messaging/messageService');
 
 const PING_INTERVAL_MS = 30000;
 const MAX_PAYLOAD_BYTES = 4096;
+const AUTH_TIMEOUT_MS = 5000;
 
 function send(socket, type, payload) {
   if (socket.readyState === socket.OPEN) socket.send(JSON.stringify({ type, payload }));
 }
 
-// TODO(CA-19): replace with the team's real token check once it is merged.
 function defaultAuthenticate(token) {
   const decoded = jwt.verify(token, config.jwtSecret);
   return String(decoded.sub || decoded.userId || decoded.id);
 }
 
-function attachGateway(server, { allowedOrigin, authenticate = defaultAuthenticate }) {
+function attachGateway(server, {
+  allowedOrigin,
+  authenticate = defaultAuthenticate,
+  authTimeoutMs = AUTH_TIMEOUT_MS,
+}) {
   const wss = new WebSocketServer({
     server,
     path: '/ws',
@@ -72,10 +76,18 @@ function attachGateway(server, { allowedOrigin, authenticate = defaultAuthentica
 
   wss.on('connection', (socket) => {
     socket.isAlive = true;
+    const authTimeout = setTimeout(() => {
+      if (socket.userId) return;
+      send(socket, 'error', { code: 'AUTH_FAILED', message: 'Authenticate within 5 seconds' });
+      socket.close(4401, 'AUTH_TIMEOUT');
+    }, authTimeoutMs);
     socket.on('pong', () => {
       socket.isAlive = true;
     });
-    socket.on('close', () => unregister(socket));
+    socket.on('close', () => {
+      clearTimeout(authTimeout);
+      unregister(socket);
+    });
 
     socket.on('message', async (raw) => {
       let msg;
@@ -86,6 +98,7 @@ function attachGateway(server, { allowedOrigin, authenticate = defaultAuthentica
       }
 
       if (msg.type === 'auth') {
+        clearTimeout(authTimeout);
         try {
           register(socket, await authenticate(msg.payload && msg.payload.token));
           return send(socket, 'auth:ok', { userId: socket.userId });

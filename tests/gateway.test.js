@@ -17,7 +17,7 @@ const authenticate = async (token) => {
 
 beforeAll((done) => {
   server = http.createServer();
-  wss = attachGateway(server, { allowedOrigin: 'http://localhost:3000', authenticate });
+  wss = attachGateway(server, { allowedOrigin: 'http://localhost:3000', authenticate, authTimeoutMs: 100 });
   server.listen(0, () => {
     port = server.address().port;
     done();
@@ -107,5 +107,12 @@ describe('WebSocket gateway (CA-22, CA-27)', () => {
     const err = await waitFor(ws, 'error');
     expect(err.payload.code).toBe('AUTH_FAILED');
     expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('closes a connection that does not authenticate within the deadline', async () => {
+    const ws = await connect();
+    const code = await new Promise((resolve) => ws.once('close', (closeCode) => resolve(closeCode)));
+    expect(code).toBe(4401);
+    expect(ws.inbox.some((message) => message.payload && message.payload.message === 'Authenticate within 5 seconds')).toBe(true);
   });
 });
