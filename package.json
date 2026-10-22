@@ -9,7 +9,9 @@
     "test": "jest --runInBand",
     "test:integration": "jest --runInBand --runTestsByPath tests/integration/messaging.integration.test.js --testPathIgnorePatterns=/node_modules/",
     "test:coverage": "jest --runInBand --coverage",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "perf:smoke": "node scripts/performance-test.js --duration=15 --users=100 --clients=100 --auth-probes=2 --history-conversations=1",
+    "perf:full": "node scripts/performance-test.js --duration=600 --users=20 --clients=100 --auth-probes=20"
   },
   "engines": {
     "node": ">=20"
