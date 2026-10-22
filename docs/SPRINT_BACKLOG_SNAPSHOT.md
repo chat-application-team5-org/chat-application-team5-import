@@ -1,6 +1,6 @@
 # GitHub Sprint Backlog Snapshot - Chat Application (Team 5)
 
-This file preserves the team's planning/backlog snapshot originally exported on 7 October 2026 from Jira project CA. It is retained as historical planning context; the team uses GitHub sprint/task tracking, issues, and pull requests for current work. **Statuses in the tables below are from the 7 October snapshot and are not current-status claims.** Check the live GitHub task tracking before acting on any status.
+This file preserves the team's sprint/backlog snapshot dated 7 October 2026 as historical planning context. The team uses GitHub sprint/task tracking, issues, and pull requests for current work. **Statuses in the tables below are from the 7 October snapshot and are not current-status claims.** Check the live GitHub task tracking before acting on any status.
 
 **10 epics, 39 stories/tasks** (5 marked done in the 7 October snapshot). Requirement IDs (REQ, PERF, SAF, SEC) refer to the SRS; test case IDs are in the Test Plan.
 
