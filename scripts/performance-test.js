@@ -19,6 +19,7 @@ const AUTH_TARGET_MS = 2000;
 const PASSWORD = 'PerfCheck123';
 const runId = Date.now().toString(36);
 const records = new Map();
+const activeSockets = new Set();
 const registrationTimes = [];
 const loginTimes = [];
 const historyTimes = [];
@@ -176,6 +177,7 @@ async function connectSocket(user) {
     }
   });
   socket.on('close', () => {
+    activeSockets.delete(socket);
     if (loadActive) unexpectedCloses += 1;
   });
 
@@ -183,6 +185,7 @@ async function connectSocket(user) {
     await once(socket, 'open');
     socket.send(JSON.stringify({ type: 'auth', payload: { token: user.token } }));
     await authReady;
+    activeSockets.add(socket);
     return socket;
   } catch (error) {
     clearTimeout(authTimer);
@@ -380,6 +383,7 @@ async function main() {
 }
 
 main().catch((error) => {
+  activeSockets.forEach((socket) => socket.terminate());
   console.error('Performance test failed:', error.message);
   process.exitCode = 1;
 });
