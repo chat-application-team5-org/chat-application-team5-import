@@ -56,9 +56,18 @@ window.Chat = window.Chat || {};
       const result = await request('GET', '/api/conversations');
       return Array.isArray(result) ? result : (result.conversations || []);
     },
-    getMessages: async (conversationId) => {
-      const result = await request('GET', '/api/conversations/' + encodeURIComponent(conversationId) + '/messages');
-      return result.messages || [];
+    getMessages: async (conversationId, { limit = 50, before } = {}) => {
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (before) params.set('before', before);
+      const result = await request(
+        'GET',
+        '/api/conversations/' + encodeURIComponent(conversationId) + '/messages?' + params.toString()
+      );
+      return {
+        messages: result.messages || [],
+        hasMore: Boolean(result.hasMore),
+        nextCursor: result.nextCursor || null,
+      };
     },
   };
 })(window.Chat);
