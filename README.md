@@ -3,8 +3,8 @@
 Real-time chat application built with Node.js, Express, `ws` (WebSockets) and MongoDB.
 PES University, Department of Computer Science and Engineering - Software Engineering mini project.
 
-Documents are in [`docs/`](docs): SRS, Software Architecture and Design Specification (SAD) and Test Plan.
-Work is tracked in Jira project **CA** (Chat Application).
+Documents are in [`docs/`](docs): SRS, Software Architecture and Design Specification (SAD), Test Plan, sprint backlog snapshot, and demo guide.
+Sprint tasks and code changes are tracked in GitHub Issues, sprint planning records, and pull requests in this repository.
 
 ## Prerequisites
 - Node.js 20 LTS or later
@@ -66,16 +66,18 @@ src/
   modules/           auth, messaging, group, presence, history, status, profile
 public/              web client (HTML/CSS/JS)
 tests/               Jest tests
-docs/                SRS, SAD, Test Plan
+docs/                SRS, SAD, Test Plan, sprint backlog and demo guide
 ```
 Module names match the architecture in the SAD (section 3.3).
 
 ## Team workflow
-1. Pick an issue from the current sprint on the Jira board and move it to **In Progress**.
-2. Create a branch: `feature/CA-<number>-short-name` (for example `feature/CA-14-data-models`).
-3. Commit often with the Jira key in the message: `CA-14: add User model`.
-4. Push and open a pull request into `main`; another team member reviews it.
-5. Merge when lint and tests pass, then move the Jira issue to **Done**.
+1. Pick the relevant task from the current sprint in the repository's GitHub Issues/project tracking.
+2. Create a branch such as `feature/CA-14-data-models`; keep the task key in the branch and commit names when one is assigned.
+3. Commit changes in small, focused steps.
+4. Push the branch and open a pull request into `main`; another team member reviews it.
+5. Merge after required reviews and checks pass, then update the corresponding GitHub task/status to reflect the actual result.
+
+The file [`docs/JIRA_BACKLOG.md`](docs/JIRA_BACKLOG.md) is a historical snapshot from 7 October 2026, not the live task status. Use the current GitHub sprint/task tracking as the source of truth and refresh the snapshot when needed. The Sprint 1 demo guide and video are in [`docs/SPRINT1_DEMO.md`](docs/SPRINT1_DEMO.md) and [`docs/Team5_Sprint1_Chat_Demo.mp4.mp4`](docs/Team5_Sprint1_Chat_Demo.mp4.mp4).
 
 Never commit `.env`, passwords or tokens.
 
@@ -84,5 +86,5 @@ Never commit `.env`, passwords or tokens.
 |---|---|
 | Harsh Kalekar | PES1UG24CS183 |
 | Chetha Samrutha | PES1UG24CS131 |
-| Gagan Eswar | [SRN] |
-| Dhanush | [SRN] |
+| Gagan | PES1UG24CS165 |
+| Dhanush K S | PES1UG24CS148 |
