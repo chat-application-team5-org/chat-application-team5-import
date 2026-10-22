@@ -15,6 +15,9 @@ function createApp() {
 
   app.use('/api/auth', require('./modules/auth/routes'));
 
+  // User lookup returns only public profile fields and requires a signed-in caller.
+  app.use('/api/users', require('./modules/users/routes'));
+
   // Conversations (CA-21)
   app.use('/api/conversations', require('./modules/messaging/routes'));
   app.use(notFound);

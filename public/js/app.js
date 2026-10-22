@@ -124,6 +124,73 @@
     $('online-list').replaceChildren(emptyItem('No one online'));
   }
 
+  const searchInput = $('search-input');
+  const searchResults = $('search-results');
+  let searchTimer;
+  let searchRequestId = 0;
+
+  function showSearchMessage(message) {
+    searchResults.replaceChildren(emptyItem(message));
+    searchResults.hidden = false;
+  }
+
+  async function startPrivateConversation(user) {
+    try {
+      const result = await api.createConversation(user.userId);
+      const conversation = result && result.conversation;
+      const conversationId = conversation && (conversation._id || conversation.conversationId);
+      if (!conversationId) throw new Error('Could not open this conversation.');
+
+      searchInput.value = '';
+      searchResults.replaceChildren();
+      searchResults.hidden = true;
+      searchRequestId += 1;
+      await loadConversations();
+      await openConversation({
+        conversationId: String(conversationId),
+        name: user.displayName || user.username,
+        type: 'PRIVATE',
+      });
+    } catch (error) {
+      ui.toast('error', error.message);
+    }
+  }
+
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    const query = searchInput.value.trim();
+    const requestId = ++searchRequestId;
+    searchResults.replaceChildren();
+    if (!query) {
+      searchResults.hidden = true;
+      return;
+    }
+
+    showSearchMessage('Searching…');
+    searchTimer = setTimeout(async () => {
+      try {
+        const users = await api.searchUsers(query);
+        if (requestId !== searchRequestId) return;
+        searchResults.replaceChildren();
+        if (!users.length) return showSearchMessage('No users found');
+
+        users.forEach((user) => {
+          const item = document.createElement('li');
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'search-result';
+          button.textContent = user.displayName || user.username;
+          button.addEventListener('click', () => startPrivateConversation(user));
+          item.appendChild(button);
+          searchResults.appendChild(item);
+        });
+        searchResults.hidden = false;
+      } catch (error) {
+        if (requestId === searchRequestId) showSearchMessage(error.message);
+      }
+    }, 200);
+  });
+
   function convItem(c) {
     const li = document.createElement('li');
     li.className = 'conv';
@@ -248,7 +315,7 @@
     input.value = '';
   });
 
-  // TODO CA-39: user search results and "start chat" (REQ-31)
+  // Search results use the authenticated users endpoint and open private chats.
 
   // ---------- Help / About dialog (Esc closes natively) ----------
   $('about-btn').onclick = () => $('about-dialog').showModal();

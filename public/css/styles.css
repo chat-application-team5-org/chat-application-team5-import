@@ -66,6 +66,8 @@ a { color: var(--primary); }
 .chat-view { flex: 1; display: grid; grid-template-columns: 320px 1fr; min-height: 0; width: 100%; }
 .sidebar { background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 12px; }
 .search input { width: 100%; }
+.search-result { width: 100%; border: 0; border-radius: 6px; padding: 9px 8px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.search-result:hover, .search-result:focus-visible { background: #e8eefb; }
 .side-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 16px 0 6px; }
 .list { list-style: none; margin: 0; padding: 0; }
 .list .empty-item { color: var(--muted); font-size: 0.9rem; padding: 6px 4px; }
