@@ -1,0 +1,113 @@
+:root {
+  --bg: #f4f6fb;
+  --surface: #ffffff;
+  --text: #1c2333;
+  --muted: #5a6478;
+  --border: #d9dfec;
+  --primary: #2f5597;
+  --primary-text: #ffffff;
+  --danger: #b3261e;
+  --success: #1e7a3c;
+  --warn: #9a6200;
+  --header-h: 52px;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg); color: var(--text); display: flex; flex-direction: column;
+}
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+[hidden] { display: none !important; }
+
+.app-header {
+  height: var(--header-h); background: var(--primary); color: var(--primary-text);
+  display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0;
+}
+.app-name { font-weight: 600; font-size: 1.05rem; white-space: nowrap; }
+.link-btn { white-space: nowrap; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.link-btn { background: none; border: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
+
+.conn { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+.conn .dot { width: 10px; height: 10px; border-radius: 50%; background: #c4c9d4; }
+.conn[data-state="online"] .dot { background: #4ade80; }
+.conn[data-state="connecting"] .dot { background: #fbbf24; }
+.conn[data-state="offline"] .dot { background: #f87171; }
+
+main { flex: 1; min-height: 0; display: flex; }
+
+/* buttons and fields */
+.btn { border: 1px solid transparent; border-radius: 6px; padding: 9px 16px; font: inherit; cursor: pointer; }
+.btn-primary { background: var(--primary); color: var(--primary-text); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-secondary { background: transparent; color: inherit; border-color: rgba(255,255,255,.7); padding: 6px 12px; }
+.btn-block { width: 100%; margin-top: 8px; }
+.icon-btn { background: none; border: 0; font-size: 1.3rem; cursor: pointer; color: var(--primary); display: none; }
+.btn:focus-visible, .link-btn:focus-visible, .tab:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, .icon-btn:focus-visible {
+  outline: 3px solid #ffbf47; outline-offset: 2px;
+}
+
+/* auth */
+.auth-view { flex: 1; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; width: 100%; max-width: 380px; }
+.tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+.tab { background: none; border: 0; padding: 10px 14px; cursor: pointer; font: inherit; color: var(--muted); border-bottom: 3px solid transparent; }
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+.field { display: flex; flex-direction: column; margin-bottom: 12px; }
+label { font-size: 0.9rem; margin-bottom: 4px; }
+input, textarea { font: inherit; padding: 9px 10px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--text); }
+input[aria-invalid="true"] { border-color: var(--danger); }
+.field-error { color: var(--danger); font-size: 0.82rem; min-height: 1.1em; margin-top: 3px; }
+.switch-text { text-align: center; font-size: 0.9rem; color: var(--muted); }
+a { color: var(--primary); }
+
+/* chat home */
+.chat-view { flex: 1; display: grid; grid-template-columns: 320px 1fr; min-height: 0; width: 100%; }
+.sidebar { background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 12px; }
+.search input { width: 100%; }
+.side-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 16px 0 6px; }
+.list { list-style: none; margin: 0; padding: 0; }
+.list .empty-item { color: var(--muted); font-size: 0.9rem; padding: 6px 4px; }
+.conv { display: flex; justify-content: space-between; align-items: center; padding: 9px 8px; border-radius: 6px; cursor: pointer; }
+.conv:hover, .conv.active { background: #e8eefb; }
+.conv-name { font-weight: 600; }
+.conv-last { font-size: 0.82rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+.badge { background: var(--primary); color: #fff; border-radius: 999px; font-size: 0.75rem; padding: 2px 8px; }
+.online-user::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22a55a; margin-right: 8px; }
+.online-user { padding: 5px 4px; }
+
+.chat-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.chat-top { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.chat-title { font-weight: 600; }
+.chat-sub { font-size: 0.82rem; color: var(--muted); min-height: 1.1em; }
+.message-pane { flex: 1; overflow-y: auto; padding: 16px; }
+.empty { color: var(--muted); text-align: center; margin-top: 40px; }
+.message-form { display: flex; gap: 8px; padding: 10px 12px; background: var(--surface); border-top: 1px solid var(--border); }
+.message-form textarea { flex: 1; resize: none; max-height: 120px; }
+
+/* toasts */
+.toasts { position: fixed; right: 16px; top: calc(var(--header-h) + 12px); display: flex; flex-direction: column; gap: 8px; z-index: 20; max-width: calc(100vw - 32px); }
+.toast { color: #fff; padding: 10px 14px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.2); font-size: 0.92rem; }
+.toast.error { background: var(--danger); }
+.toast.success { background: var(--success); }
+.toast.info { background: var(--warn); }
+
+.dialog { border: 1px solid var(--border); border-radius: 10px; max-width: 420px; }
+.dialog::backdrop { background: rgba(0,0,0,.4); }
+
+/* mobile: one pane at a time (360 px and up) */
+@media (max-width: 700px) {
+  .chat-view { grid-template-columns: 1fr; }
+  .chat-view[data-pane="list"] .chat-pane { display: none; }
+  .chat-view[data-pane="chat"] .sidebar { display: none; }
+  .icon-btn { display: inline-block; }
+  .app-header { padding: 0 10px; }
+  .app-name { font-size: 0.9rem; }
+  .header-right { gap: 8px; }
+  .link-btn { font-size: 0.85rem; }
+  .btn-secondary { padding: 5px 9px; font-size: 0.85rem; }
+}
+@media (max-width: 480px) {
+  #conn-text { display: none; } /* the dot stays; its colour and tooltip show the state */
+}
