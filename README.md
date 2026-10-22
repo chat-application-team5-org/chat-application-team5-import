@@ -77,7 +77,7 @@ Module names match the architecture in the SAD (section 3.3).
 4. Push the branch and open a pull request into `main`; another team member reviews it.
 5. Merge after required reviews and checks pass, then update the corresponding GitHub task/status to reflect the actual result.
 
-The file [`docs/JIRA_BACKLOG.md`](docs/JIRA_BACKLOG.md) is a historical snapshot from 7 October 2026, not the live task status. Use the current GitHub sprint/task tracking as the source of truth and refresh the snapshot when needed. The Sprint 1 demo guide and video are in [`docs/SPRINT1_DEMO.md`](docs/SPRINT1_DEMO.md) and [`docs/Team5_Sprint1_Chat_Demo.mp4.mp4`](docs/Team5_Sprint1_Chat_Demo.mp4.mp4).
+The file [`docs/SPRINT_BACKLOG_SNAPSHOT.md`](docs/SPRINT_BACKLOG_SNAPSHOT.md) is a historical planning snapshot from 7 October 2026, not the live task status. Use the current GitHub sprint/task tracking as the source of truth and refresh the snapshot when needed. The Sprint 1 demo guide and video are in [`docs/SPRINT1_DEMO.md`](docs/SPRINT1_DEMO.md) and [`docs/Team5_Sprint1_Chat_Demo.mp4.mp4`](docs/Team5_Sprint1_Chat_Demo.mp4.mp4).
 
 Never commit `.env`, passwords or tokens.
 
