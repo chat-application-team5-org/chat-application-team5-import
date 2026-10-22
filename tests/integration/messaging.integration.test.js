@@ -157,9 +157,32 @@ test('two authenticated clients exchange a persisted message and history survive
   const saved = await Message.findById(ack.messageId);
   expect(saved).toMatchObject({ content: 'Hello, Bob!', status: 'SENT' });
 
+  // Add older test messages so pagination crosses the 50-message page boundary.
+  await Message.insertMany(Array.from({ length: 52 }, (_, index) => ({
+    conversation: conversationId,
+    sender: registrationA.data.userId,
+    content: `History page test message ${index + 1}`,
+    status: 'SENT',
+  })));
+
   await stopServer();
   await startServer();
-  const history = await requestJson(`/api/conversations/${conversationId}/messages`, { token: loginB.data.token });
+
+  const historyPath = `/api/conversations/${conversationId}/messages?limit=50`;
+  const history = await requestJson(historyPath, { token: loginB.data.token });
   expect(history.response.status).toBe(200);
-  expect(history.data.messages.map((message) => message.content)).toContain('Hello, Bob!');
+  expect(history.data.messages).toHaveLength(50);
+  expect(history.data.hasMore).toBe(true);
+  expect(history.data.nextCursor).toBe(String(history.data.messages[0]._id));
+
+  const olderHistory = await requestJson(
+    `/api/conversations/${conversationId}/messages?limit=50&before=${history.data.nextCursor}`,
+    { token: loginB.data.token }
+  );
+  expect(olderHistory.response.status).toBe(200);
+  expect(olderHistory.data.messages).toHaveLength(3);
+  expect(olderHistory.data.hasMore).toBe(false);
+  expect(olderHistory.data.messages.map((message) => message.content)).toContain('Hello, Bob!');
+  const firstPageIds = new Set(history.data.messages.map((message) => String(message._id)));
+  expect(olderHistory.data.messages.every((message) => !firstPageIds.has(String(message._id)))).toBe(true);
 });

@@ -49,10 +49,7 @@ MongoDB service for this test.
 - `GET /api/conversations` and `GET /api/conversations/:id/messages` with a bearer token
 - WebSocket messages use `ws://localhost:3000/ws`; send an `auth` event containing the JWT before other events
 
-The authenticated browser shell loads recent messages, displays sender/time/status,
-shows a pending message immediately, and replaces its status after the server's
-persist-before-acknowledge response. Starting a new conversation from user search
-and paging older history are not implemented yet.
+The authenticated browser shell loads the latest 50 messages, supports cursor-based loading of older history when scrolling to the top, displays sender/time/status, shows a pending message immediately, and replaces its status after the server's persist-before-acknowledge response. Starting a new conversation from user search is supported.
 
 ## Project structure
 ```

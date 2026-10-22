@@ -212,9 +212,21 @@
   }
 
   let currentConversation = null;
+  let messageHistory = {
+    conversationId: null,
+    nextCursor: null,
+    hasMore: false,
+    loading: false,
+  };
 
   async function openConversation(c) {
     currentConversation = c;
+    messageHistory = {
+      conversationId: String(c.conversationId),
+      nextCursor: null,
+      hasMore: false,
+      loading: true,
+    };
     document.querySelectorAll('.conv').forEach((el) => el.classList.toggle('active', el.dataset.id === c.conversationId));
     $('chat-title').textContent = c.name;
     $('chat-sub').textContent = c.type === 'GROUP' ? 'Group' : '';
@@ -225,13 +237,16 @@
     $('send-btn').disabled = false;
     $('chat-view').dataset.pane = 'chat';
     try {
-      const messages = await api.getMessages(c.conversationId);
+      const page = await api.getMessages(c.conversationId, { limit: 50 });
       if (currentConversation !== c) return;
+      messageHistory.nextCursor = page.nextCursor;
+      messageHistory.hasMore = page.hasMore;
+      messageHistory.loading = false;
       $('message-pane').replaceChildren();
-      if (!messages.length) {
+      if (!page.messages.length) {
         const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = 'No messages yet.';
         $('message-pane').appendChild(empty);
-      } else messages.forEach((message) => renderMessage(message));
+      } else page.messages.forEach((message) => renderMessage(message));
     } catch (err) {
       $('message-pane').replaceChildren();
       ui.toast('error', err.message);
@@ -239,8 +254,40 @@
     $('message-input').focus();
   }
 
+  // Load older pages as the user scrolls to the top of the conversation.
+  async function loadOlderMessages() {
+    const state = messageHistory;
+    const pane = $('message-pane');
+    if (!state.conversationId || !state.hasMore || state.loading || !state.nextCursor) return;
+
+    state.loading = true;
+    const previousHeight = pane.scrollHeight;
+    const previousTop = pane.scrollTop;
+    try {
+      const page = await api.getMessages(state.conversationId, {
+        limit: 50,
+        before: state.nextCursor,
+      });
+      if (messageHistory !== state) return;
+
+      // Insert in reverse because each prepended bubble goes before the first one.
+      page.messages.slice().reverse().forEach((message) => renderMessage(message, { prepend: true }));
+      state.hasMore = page.hasMore;
+      state.nextCursor = page.nextCursor;
+      pane.scrollTop = previousTop + (pane.scrollHeight - previousHeight);
+    } catch (error) {
+      ui.toast('error', 'Could not load older messages: ' + error.message);
+    } finally {
+      if (messageHistory === state) state.loading = false;
+    }
+  }
+
+  $('message-pane').addEventListener('scroll', () => {
+    if ($('message-pane').scrollTop <= 40) loadOlderMessages();
+  });
+
   const pendingMessages = new Map();
-  function renderMessage(message, { pending = false, clientMsgId } = {}) {
+  function renderMessage(message, { pending = false, clientMsgId, prepend = false } = {}) {
     const pane = $('message-pane');
     const empty = pane.querySelector('.empty');
     if (empty) empty.remove();
@@ -261,8 +308,11 @@
     status.textContent = message.status || (pending ? 'Sending…' : 'SENT');
     meta.append(sender, time, status);
     bubble.append(content, meta);
-    pane.appendChild(bubble);
-    pane.scrollTop = pane.scrollHeight;
+    if (prepend) pane.insertBefore(bubble, pane.firstChild);
+    else {
+      pane.appendChild(bubble);
+      pane.scrollTop = pane.scrollHeight;
+    }
     return bubble;
   }
 
