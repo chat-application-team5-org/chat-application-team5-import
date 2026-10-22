@@ -77,8 +77,8 @@ router.get('/', async (req, res, next) => {
 
 // GET /api/conversations/:id/messages?limit=50&before=<messageId>
 // Returns one page in oldest-to-newest display order. The opaque cursor is the
-// oldest message ID in the current page; ObjectIds provide the same stable order
-// used by the query and the (conversation, createdAt) history index remains useful.
+// oldest message ID in the current page. Generated ObjectIds give a stable
+// descending cursor consistent with the query sort.
 router.get('/:id/messages', async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
