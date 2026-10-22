@@ -1,4 +1,5 @@
 const http = require('http');
+const os = require('os');
 const WebSocket = require('ws');
 
 if (!process.env.MONGO_URI) {
@@ -95,7 +96,12 @@ async function connectSocket(token) {
 }
 
 beforeAll(async () => {
-  await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 5000 });
+  // MongoDB Node driver 7.6+ can build empty client metadata in Jest's
+  // CommonJS runtime unless its OS adapter is supplied explicitly.
+  await mongoose.connect(process.env.MONGO_URI, {
+    serverSelectionTimeoutMS: 5000,
+    runtimeAdapters: { os },
+  });
   await mongoose.connection.dropDatabase();
   await Promise.all([User.init(), Conversation.init(), Message.init()]);
   await startServer();
