@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      lowercase: true,
       unique: true,
     },
     email: {
@@ -19,6 +20,8 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    failedLoginAttempts: { type: Number, default: 0, min: 0 },
+    lockUntil: { type: Date, default: null },
   },
   {
     timestamps: true,

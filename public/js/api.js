@@ -51,6 +51,13 @@ window.Chat = window.Chat || {};
     login: (identifier, password) => request('POST', '/api/auth/login', { identifier, password }),
     logout: () => request('POST', '/api/auth/logout').catch(() => null),
     searchUsers: (q) => request('GET', '/api/users/search?q=' + encodeURIComponent(q)),
-    listConversations: () => request('GET', '/api/conversations'),
+    listConversations: async () => {
+      const result = await request('GET', '/api/conversations');
+      return Array.isArray(result) ? result : (result.conversations || []);
+    },
+    getMessages: async (conversationId) => {
+      const result = await request('GET', '/api/conversations/' + encodeURIComponent(conversationId) + '/messages');
+      return result.messages || [];
+    },
   };
 })(window.Chat);

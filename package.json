@@ -7,6 +7,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "jest --runInBand",
+    "test:integration": "jest --runInBand --runTestsByPath tests/integration/messaging.integration.test.js --testPathIgnorePatterns=/node_modules/",
     "test:coverage": "jest --runInBand --coverage",
     "lint": "eslint ."
   },
@@ -16,6 +17,10 @@
   "license": "MIT",
   "jest": {
     "testEnvironment": "node",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/tests/integration/"
+    ],
     "collectCoverageFrom": [
       "src/**/*.js"
     ]

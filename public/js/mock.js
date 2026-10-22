@@ -26,6 +26,7 @@ window.Chat = window.Chat || {};
         { conversationId: 'c2', type: 'GROUP', name: 'Team 5', lastMessage: 'Sprint 1 starts today', unreadCount: 0 },
       ];
     }
+    if (method === 'GET' && /^\/api\/conversations\/[^/]+\/messages$/.test(path)) return { messages: [] };
     if (method === 'GET' && path.startsWith('/api/users/search')) {
       const q = new URLSearchParams(path.split('?')[1]).get('q').toLowerCase();
       return users.filter((u) => u.username.includes(q));

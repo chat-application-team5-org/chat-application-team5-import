@@ -12,12 +12,16 @@ Work is tracked in Jira project **CA** (Chat Application).
 
 ## Setup
 ```bash
-npm install
+npm ci
 cp .env.example .env     # then edit .env (set JWT_SECRET and MONGO_URI)
 npm start
 ```
 Open http://localhost:3000 and check http://localhost:3000/health.
 The WebSocket endpoint is `ws://localhost:3000/ws`.
+
+For PowerShell, copy the environment template with `Copy-Item .env.example .env`.
+Set `MONGO_URI` to a MongoDB database you control and replace `JWT_SECRET` with a
+long random value before using real accounts. Never commit `.env`.
 
 ## Scripts
 | Command | What it does |
@@ -26,7 +30,29 @@ The WebSocket endpoint is `ws://localhost:3000/ws`.
 | `npm run dev` | Start with auto-reload (nodemon) |
 | `npm test` | Run unit and integration tests (Jest) |
 | `npm run test:coverage` | Tests with coverage report (target 70% of server logic) |
+| `npm run test:integration` | MongoDB-backed registration, conversation, WebSocket, and history test (requires a disposable `chatapp_test` database) |
 | `npm run lint` | Check code style (ESLint) |
+
+The integration test deletes and recreates its database. It refuses to run unless
+the database name is `chatapp_test` or begins with `chatapp_test_`. For local
+verification, use a disposable MongoDB instance and a unique test database, such
+as `MONGO_URI=mongodb://127.0.0.1:27017/chatapp_test_local`; set `JWT_SECRET` in
+the shell before running the command. GitHub Actions provides its own temporary
+MongoDB service for this test.
+
+## Sprint 1 API
+
+- `POST /api/auth/register` with `{ "username", "email", "password" }`
+- `POST /api/auth/login` with `{ "identifier", "password" }` (username or email)
+- `POST /api/auth/logout` with a bearer token
+- `POST /api/conversations` with `{ "participantId" }` and a bearer token
+- `GET /api/conversations` and `GET /api/conversations/:id/messages` with a bearer token
+- WebSocket messages use `ws://localhost:3000/ws`; send an `auth` event containing the JWT before other events
+
+The authenticated browser shell loads recent messages, displays sender/time/status,
+shows a pending message immediately, and replaces its status after the server's
+persist-before-acknowledge response. Starting a new conversation from user search
+and paging older history are not implemented yet.
 
 ## Project structure
 ```

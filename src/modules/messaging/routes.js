@@ -10,30 +10,32 @@ const router = express.Router();
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
+// Authenticate every conversation operation before looking at user IDs.
+router.use(currentUser);
+
 // Newest messages first from the database, returned oldest to newest for display.
 async function loadRecentMessages(conversationId, limit = DEFAULT_LIMIT) {
   const messages = await Message.find({ conversation: conversationId })
+    .populate('sender', 'username')
     .sort({ _id: -1 })
     .limit(limit);
   return messages.reverse();
 }
 
-// Legacy route from the first version, kept so existing tests keep passing.
+// Legacy path retained for client compatibility. The caller always comes from
+// the verified token; a userId in the request body is ignored.
 router.post('/private', async (req, res, next) => {
   try {
-    const { userId, otherUserId } = req.body || {};
-    if (!mongoose.isValidObjectId(userId) || !mongoose.isValidObjectId(otherUserId)) {
-      throw new AppError(400, 'VALIDATION_ERROR', 'Valid userId and otherUserId are required.');
+    const { otherUserId } = req.body || {};
+    if (!mongoose.isValidObjectId(otherUserId)) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'A valid otherUserId is required.');
     }
-    const conversation = await getOrCreatePrivateConversation(userId, otherUserId);
+    const conversation = await getOrCreatePrivateConversation(req.userId, otherUserId);
     res.status(200).json({ conversation });
   } catch (error) {
     next(error);
   }
 });
-
-// CA-21: everything below needs to know who the caller is.
-router.use(currentUser);
 
 // POST /api/conversations {participantId}: create the private chat the first
 // time, return the same one afterwards, and include the recent messages.
@@ -54,8 +56,20 @@ router.post('/', async (req, res, next) => {
 // GET /api/conversations: only the caller's own conversations.
 router.get('/', async (req, res, next) => {
   try {
-    const conversations = await Conversation.find({ participants: req.userId }).sort({ updatedAt: -1 });
-    res.status(200).json({ conversations });
+    const records = await Conversation.find({ participants: req.userId })
+      .populate('participants', 'username')
+      .sort({ updatedAt: -1 });
+    const conversations = records.map((conversation) => {
+      const otherParticipant = conversation.participants.find((participant) => String(participant._id) !== req.userId);
+      return {
+        conversationId: String(conversation._id),
+        type: conversation.type === 'group' ? 'GROUP' : 'PRIVATE',
+        name: otherParticipant ? otherParticipant.username : 'Private conversation',
+        lastMessage: '',
+        unreadCount: 0,
+      };
+    });
+    res.status(200).json(conversations);
   } catch (error) {
     next(error);
   }

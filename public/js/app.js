@@ -91,7 +91,15 @@
   ws.on('error', (p) => {
     if (!p) return;
     if (p.code === 'AUTH_FAILED' || p.code === 'AUTH_TOKEN_INVALID') logout('Please log in again');
-    else ui.toast('error', p.message);
+    else {
+      const pending = pendingMessages.get(p.clientMsgId);
+      if (pending) {
+        pending.bubble.remove();
+        pendingMessages.delete(p.clientMsgId);
+        if (!$('message-input').value) $('message-input').value = pending.content;
+      }
+      ui.toast('error', p.message);
+    }
   });
 
   // ---------- Chat Home shell ----------
@@ -138,20 +146,73 @@
 
   let currentConversation = null;
 
-  function openConversation(c) {
+  async function openConversation(c) {
     currentConversation = c;
     document.querySelectorAll('.conv').forEach((el) => el.classList.toggle('active', el.dataset.id === c.conversationId));
     $('chat-title').textContent = c.name;
     $('chat-sub').textContent = c.type === 'GROUP' ? 'Group' : '';
     $('message-pane').replaceChildren();
-    const p = document.createElement('p'); p.className = 'empty';
-    p.textContent = 'Messages will appear here.'; // TODO CA-25: render messages (sender, time, status)
-    $('message-pane').appendChild(p);
+    const loading = document.createElement('p'); loading.className = 'empty'; loading.textContent = 'Loading messages…';
+    $('message-pane').appendChild(loading);
     $('message-input').disabled = false;
     $('send-btn').disabled = false;
     $('chat-view').dataset.pane = 'chat';
+    try {
+      const messages = await api.getMessages(c.conversationId);
+      if (currentConversation !== c) return;
+      $('message-pane').replaceChildren();
+      if (!messages.length) {
+        const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = 'No messages yet.';
+        $('message-pane').appendChild(empty);
+      } else messages.forEach((message) => renderMessage(message));
+    } catch (err) {
+      $('message-pane').replaceChildren();
+      ui.toast('error', err.message);
+    }
     $('message-input').focus();
   }
+
+  const pendingMessages = new Map();
+  function renderMessage(message, { pending = false, clientMsgId } = {}) {
+    const pane = $('message-pane');
+    const empty = pane.querySelector('.empty');
+    if (empty) empty.remove();
+    const senderId = message.sender && (message.sender._id || message.sender);
+    const own = String(senderId) === String(api.session.user && api.session.user.userId);
+    const bubble = document.createElement('article');
+    bubble.className = 'message' + (own ? ' message-own' : '') + (pending ? ' message-pending' : '');
+    if (clientMsgId) bubble.dataset.clientMsgId = clientMsgId;
+    const content = document.createElement('div'); content.textContent = message.content;
+    const meta = document.createElement('div'); meta.className = 'message-meta';
+    const sender = document.createElement('span');
+    sender.textContent = own ? 'You' : ((message.sender && message.sender.username) || 'Other user');
+    const time = document.createElement('time');
+    const date = new Date(message.createdAt || Date.now());
+    time.dateTime = date.toISOString();
+    time.textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const status = document.createElement('span'); status.className = 'message-status';
+    status.textContent = message.status || (pending ? 'Sending…' : 'SENT');
+    meta.append(sender, time, status);
+    bubble.append(content, meta);
+    pane.appendChild(bubble);
+    pane.scrollTop = pane.scrollHeight;
+    return bubble;
+  }
+
+  ws.on('message:status', (payload) => {
+    const pending = pendingMessages.get(payload.clientMsgId);
+    if (!pending) return;
+    pending.bubble.classList.remove('message-pending');
+    pending.bubble.querySelector('.message-status').textContent = payload.status;
+    pendingMessages.delete(payload.clientMsgId);
+  });
+
+  ws.on('message:new', (payload) => {
+    const message = payload && payload.message;
+    if (!message || !currentConversation) return;
+    const conversationId = String(message.conversation && (message.conversation._id || message.conversation));
+    if (conversationId === String(currentConversation.conversationId)) renderMessage(message);
+  });
 
   $('back-btn').onclick = () => { $('chat-view').dataset.pane = 'list'; };
 
@@ -170,12 +231,20 @@
     if (!content.trim()) return ui.toast('error', 'Message cannot be empty');
     if (content.length > 2000) return ui.toast('error', 'Message is too long (maximum 2,000 characters)');
     if (!currentConversation) return;
-    // TODO CA-22 / CA-25: server ack and rendering. For now the event is sent over the socket.
-    ws.send('message:send', {
+    const clientMsgId = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now());
+    const sent = ws.send('message:send', {
       conversationId: currentConversation.conversationId,
       content,
-      clientMsgId: (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()),
+      clientMsgId,
     });
+    if (!sent) return ui.toast('error', 'The chat connection is not ready. Your message is still here.');
+    const bubble = renderMessage({
+      content,
+      createdAt: new Date().toISOString(),
+      status: 'Sending…',
+      sender: api.session.user && api.session.user.userId,
+    }, { pending: true, clientMsgId });
+    pendingMessages.set(clientMsgId, { bubble, content });
     input.value = '';
   });
 
