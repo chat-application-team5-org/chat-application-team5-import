@@ -4,7 +4,7 @@
  */
 const { once } = require('node:events');
 const { performance } = require('node:perf_hooks');
-const { randomUUID } = require('node:crypto');
+const os = require('node:os');
 const WebSocket = require('ws');
 
 const BASE_URL = (process.env.BASE_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
@@ -22,7 +22,6 @@ const records = new Map();
 const registrationTimes = [];
 const loginTimes = [];
 const historyTimes = [];
-const latencyTargetSamples = [];
 let loadActive = false;
 let unexpectedCloses = 0;
 let skippedSends = 0;
@@ -127,7 +126,6 @@ function handleServerEvent(event) {
       if (record.firstDeliveryAt === null) {
         record.firstDeliveryAt = performance.now();
         record.latencyMs = record.firstDeliveryAt - record.startedAt;
-        if (record.phase === 'load') latencyTargetSamples.push(record.latencyMs);
       }
       maybeComplete(record);
     }
@@ -335,6 +333,12 @@ async function main() {
 
   const report = {
     runId,
+    system: {
+      platform: os.platform(),
+      release: os.release(),
+      nodeVersion: process.version,
+      totalMemoryGiB: Number((os.totalmem() / (1024 ** 3)).toFixed(2)),
+    },
     baseUrl: BASE_URL,
     durationSeconds: DURATION_SECONDS,
     distinctUsers: USERS,
