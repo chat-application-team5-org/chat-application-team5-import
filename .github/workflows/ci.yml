@@ -35,3 +35,30 @@ jobs:
           MONGO_URI: mongodb://127.0.0.1:27017/chatapp_test
           JWT_SECRET: ci-only-test-secret
       - run: npm run lint
+      - name: Start server for performance smoke
+        run: |
+          node src/server.js > /tmp/chat-app.log 2>&1 &
+          echo $! > /tmp/chat-app.pid
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3000/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/chat-app.log
+          exit 1
+        env:
+          PORT: 3000
+          MONGO_URI: mongodb://127.0.0.1:27017/chatapp_perf_test
+          JWT_SECRET: ci-performance-only-secret
+      - name: Run 100-client performance smoke
+        run: npm run perf:smoke
+        env:
+          BASE_URL: http://127.0.0.1:3000
+          PERF_LATENCY_TARGET_MS: 500
+      - name: Stop performance smoke server
+        if: always()
+        run: |
+          if [ -f /tmp/chat-app.pid ]; then
+            kill "$(cat /tmp/chat-app.pid)" 2>/dev/null || true
+          fi
