@@ -51,6 +51,7 @@ window.Chat = window.Chat || {};
     login: (identifier, password) => request('POST', '/api/auth/login', { identifier, password }),
     logout: () => request('POST', '/api/auth/logout').catch(() => null),
     searchUsers: (q) => request('GET', '/api/users/search?q=' + encodeURIComponent(q)),
+    createConversation: (participantId) => request('POST', '/api/conversations', { participantId }),
     listConversations: async () => {
       const result = await request('GET', '/api/conversations');
       return Array.isArray(result) ? result : (result.conversations || []);
