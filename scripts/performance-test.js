@@ -13,6 +13,7 @@ const DURATION_SECONDS = readOption('duration', 600);
 const USERS = readOption('users', 20);
 const CLIENTS = readOption('clients', 100);
 const AUTH_PROBES = readOption('auth-probes', 20);
+const HISTORY_CONVERSATIONS = readOption('history-conversations', 0);
 const LATENCY_TARGET_MS = Number(process.env.PERF_LATENCY_TARGET_MS || 500);
 const PAGE_TARGET_MS = 1000;
 const AUTH_TARGET_MS = 2000;
@@ -283,8 +284,11 @@ async function main() {
     });
   }
 
-  // Prime every conversation with at least 50 messages before timing history reads.
-  for (let convIndex = 0; convIndex < conversations.length; convIndex += 1) {
+  // Prime selected conversations with at least 50 messages before timing history reads.
+  const historiesToMeasure = HISTORY_CONVERSATIONS > 0
+    ? Math.min(HISTORY_CONVERSATIONS, conversations.length)
+    : conversations.length;
+  for (let convIndex = 0; convIndex < historiesToMeasure; convIndex += 1) {
     const sender = clients.find((client) => client.userIndex === convIndex * 2);
     for (let index = 0; index < 50; index += 1) {
       await sendOne(sender, 'warmup', true);
@@ -311,7 +315,7 @@ async function main() {
   loadActive = false;
   await delay(5000);
 
-  for (let convIndex = 0; convIndex < conversations.length; convIndex += 1) {
+  for (let convIndex = 0; convIndex < historiesToMeasure; convIndex += 1) {
     const started = performance.now();
     const result = await requestJson(
       '/api/conversations/' + encodeURIComponent(conversations[convIndex]) + '/messages?limit=50',
