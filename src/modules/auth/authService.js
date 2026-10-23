@@ -53,11 +53,20 @@ async function loginUser(body) {
   const user = await User.findOne({ $or: [{ username: normalized }, { email: normalized }] });
   if (!user) throw new AppError(401, 'AUTH_INVALID_CREDENTIALS', 'Invalid credentials');
 
+
+
   if (user.lockUntil && user.lockUntil.getTime() > Date.now()) {
     throw new AppError(423, 'ACCOUNT_LOCKED', 'Account is locked. Try again later.');
   }
 
+  // Reset previous failed attempts after the lockout expires.
+  if (user.lockUntil && user.lockUntil.getTime() <= Date.now()) {
+    user.failedLoginAttempts = 0;
+    user.lockUntil = null;
+  }
+
   const validPassword = await bcrypt.compare(password, user.passwordHash);
+
   if (!validPassword) {
     user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
     if (user.failedLoginAttempts >= MAX_LOGIN_ATTEMPTS) {

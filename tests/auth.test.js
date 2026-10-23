@@ -93,6 +93,27 @@ describe('authentication API (CA-11, CA-16, CA-17, CA-18, CA-20)', () => {
     expect(locked.status).toBe(423);
     expect(locked.body.error.code).toBe('ACCOUNT_LOCKED');
   });
+  test('expired lockout resets previous failed attempts', async () => {
+    User.findOne.mockResolvedValue(user);
+
+    // Simulate a lockout that expired one minute ago.
+    user.failedLoginAttempts = 5;
+    user.lockUntil = new Date(Date.now() - 60 * 1000);
+
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send({ identifier: 'alice', password: 'Wrong123' });
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.message).toBe('Invalid credentials');
+
+    // The expired lockout should be cleared, then this new failure
+    // should count as attempt number one.
+    expect(user.failedLoginAttempts).toBe(1);
+    expect(user.lockUntil).toBeNull();
+    expect(user.save).toHaveBeenCalled();
+  });
+
 
   test('logout requires a signed token', async () => {
     const unauthenticated = await request(app).post('/api/auth/logout');
