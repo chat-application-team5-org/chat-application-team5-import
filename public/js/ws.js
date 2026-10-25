@@ -51,5 +51,6 @@ window.Chat = window.Chat || {};
     setStatus('offline');
   }
 
-  Chat.ws = { connect, send, on, onStatus, close };
+  // inject: lets mock mode (and tests) simulate an event coming from the server
+  Chat.ws = { connect, send, on, onStatus, close, inject: emit };
 })(window.Chat);

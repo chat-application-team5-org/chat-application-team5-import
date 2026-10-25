@@ -45,29 +45,51 @@ window.Chat = window.Chat || {};
     return data;
   }
 
+  // The backend returns Mongoose documents ({ _id, conversation, sender, createdAt, ... }).
+  // The UI works with flat objects, so everything is converted here, in one place.
+  const idOf = (v) => (v && typeof v === 'object' && v._id ? String(v._id) : v == null ? v : String(v));
+
+  function normalizeMessage(m) {
+    return {
+      messageId: m.messageId || idOf(m._id),
+      conversationId: m.conversationId || idOf(m.conversation),
+      senderId: m.senderId || idOf(m.sender),
+      senderName: m.senderName || (m.sender && m.sender.displayName) || (m.sender && m.sender.username) || '',
+      content: m.content,
+      sentAt: m.sentAt || m.createdAt,
+      status: m.status,
+      clientMsgId: m.clientMsgId,
+    };
+  }
+
+  function normalizeConversation(c) {
+    const participants = (c.participants || []).map(idOf);
+    return {
+      conversationId: c.conversationId || idOf(c._id),
+      type: c.type || (participants.length > 2 ? 'GROUP' : 'PRIVATE'),
+      name: c.name || c.title || (c.otherUser && (c.otherUser.displayName || c.otherUser.username)) || 'Conversation',
+      lastMessage: c.lastMessage || '',
+      unreadCount: c.unreadCount || 0,
+      participants,
+    };
+  }
+
   Chat.api = {
     session,
     register: (username, email, password) => request('POST', '/api/auth/register', { username, email, password }),
     login: (identifier, password) => request('POST', '/api/auth/login', { identifier, password }),
     logout: () => request('POST', '/api/auth/logout').catch(() => null),
     searchUsers: (q) => request('GET', '/api/users/search?q=' + encodeURIComponent(q)),
-    createConversation: (participantId) => request('POST', '/api/conversations', { participantId }),
+    // accepts either an array or { conversations: [...] }
     listConversations: async () => {
-      const result = await request('GET', '/api/conversations');
-      return Array.isArray(result) ? result : (result.conversations || []);
+      const res = await request('GET', '/api/conversations');
+      return (Array.isArray(res) ? res : (res && res.conversations) || []).map(normalizeConversation);
     },
-    getMessages: async (conversationId, { limit = 50, before } = {}) => {
-      const params = new URLSearchParams({ limit: String(limit) });
-      if (before) params.set('before', before);
-      const result = await request(
-        'GET',
-        '/api/conversations/' + encodeURIComponent(conversationId) + '/messages?' + params.toString()
-      );
-      return {
-        messages: result.messages || [],
-        hasMore: Boolean(result.hasMore),
-        nextCursor: result.nextCursor || null,
-      };
+    // latest 50 messages (REQ-24); resolves to { messages, hasMore }
+    getMessages: async (conversationId) => {
+      const res = await request('GET', '/api/conversations/' + encodeURIComponent(conversationId) + '/messages');
+      return { messages: ((res && res.messages) || []).map(normalizeMessage), hasMore: Boolean(res && res.hasMore) };
     },
+    normalize: { message: normalizeMessage, conversation: normalizeConversation },
   };
 })(window.Chat);
