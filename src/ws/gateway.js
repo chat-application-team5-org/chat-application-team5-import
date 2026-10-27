@@ -12,8 +12,16 @@ function send(socket, type, payload) {
 }
 
 function defaultAuthenticate(token) {
+  if (typeof token !== 'string' || !token.trim()) {
+    throw new Error('A token is required');
+  }
+  if (!config.jwtSecret) {
+    throw new Error('Authentication is not configured');
+  }
   const decoded = jwt.verify(token, config.jwtSecret);
-  return String(decoded.sub || decoded.userId || decoded.id);
+  const userId = decoded.sub || decoded.userId || decoded.id;
+  if (!userId) throw new Error('Token does not identify a user');
+  return String(userId);
 }
 
 function attachGateway(server, {
@@ -21,11 +29,20 @@ function attachGateway(server, {
   authenticate = defaultAuthenticate,
   authTimeoutMs = AUTH_TIMEOUT_MS,
 }) {
+  // Browsers must send the configured Origin. Do not allow a missing Origin
+  // to bypass the origin allow-list.
+  const permittedOrigin = typeof allowedOrigin === 'string' && allowedOrigin.length > 0
+    ? allowedOrigin
+    : config.allowedOrigin;
+
   const wss = new WebSocketServer({
     server,
     path: '/ws',
     maxPayload: MAX_PAYLOAD_BYTES,
-    verifyClient: ({ origin }) => !origin || origin === allowedOrigin,
+    verifyClient: ({ origin }, done) => {
+      if (origin === permittedOrigin) return done(true);
+      return done(false, 403, 'Forbidden origin');
+    },
   });
 
   // userId -> set of that user's open sockets (CA-22)
@@ -38,6 +55,7 @@ function attachGateway(server, {
   }
 
   function unregister(socket) {
+    if (!socket.userId) return;
     const sockets = online.get(socket.userId);
     if (!sockets) return;
     sockets.delete(socket);
@@ -81,6 +99,7 @@ function attachGateway(server, {
       send(socket, 'error', { code: 'AUTH_FAILED', message: 'Authenticate within 5 seconds' });
       socket.close(4401, 'AUTH_TIMEOUT');
     }, authTimeoutMs);
+
     socket.on('pong', () => {
       socket.isAlive = true;
     });
@@ -97,12 +116,23 @@ function attachGateway(server, {
         return send(socket, 'error', { code: 'VALIDATION_ERROR', message: 'Invalid JSON' });
       }
 
-      if (msg.type === 'auth') {
-        clearTimeout(authTimeout);
+      if (msg && msg.type === 'auth') {
+        if (socket.userId) {
+          send(socket, 'error', { code: 'AUTH_ALREADY_COMPLETED', message: 'Connection is already authenticated' });
+          return socket.close(4401, 'AUTH_ALREADY_COMPLETED');
+        }
+
         try {
-          register(socket, await authenticate(msg.payload && msg.payload.token));
+          const token = msg.payload && msg.payload.token;
+          const userId = await authenticate(token);
+          if (typeof userId !== 'string' || !userId.trim()) {
+            throw new Error('Token did not resolve to a user');
+          }
+          register(socket, userId);
+          clearTimeout(authTimeout);
           return send(socket, 'auth:ok', { userId: socket.userId });
         } catch {
+          clearTimeout(authTimeout);
           send(socket, 'error', { code: 'AUTH_FAILED', message: 'Authentication failed' });
           return socket.close(4401, 'AUTH_FAILED');
         }
@@ -113,9 +143,12 @@ function attachGateway(server, {
         return socket.close(4401, 'AUTH_FAILED');
       }
 
-      if (msg.type === 'message:send') return handleSend(socket, msg.payload);
+      if (msg && msg.type === 'message:send') return handleSend(socket, msg.payload);
 
-      return send(socket, 'error', { code: 'VALIDATION_ERROR', message: `Unsupported event: ${msg.type}` });
+      return send(socket, 'error', {
+        code: 'VALIDATION_ERROR',
+        message: `Unsupported event: ${msg && msg.type}`,
+      });
     });
   });
 
