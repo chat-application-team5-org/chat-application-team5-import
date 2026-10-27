@@ -9,15 +9,22 @@ let server;
 let wss;
 let port;
 
-// Test tokens are just the user id.
+const ALLOWED_ORIGIN = 'http://localhost:3000';
+
+// Test tokens are just the user id. "slow" simulates a delayed token verifier.
 const authenticate = async (token) => {
   if (!token) throw new Error('no token');
+  if (token === 'slow') await new Promise((resolve) => setTimeout(resolve, 250));
   return token;
 };
 
 beforeAll((done) => {
   server = http.createServer();
-  wss = attachGateway(server, { allowedOrigin: 'http://localhost:3000', authenticate, authTimeoutMs: 100 });
+  wss = attachGateway(server, {
+    allowedOrigin: ALLOWED_ORIGIN,
+    authenticate,
+    authTimeoutMs: 100,
+  });
   server.listen(0, () => {
     port = server.address().port;
     done();
@@ -31,12 +38,25 @@ afterAll((done) => {
 
 beforeEach(() => sendMessage.mockReset());
 
-function connect() {
-  return new Promise((resolve) => {
-    const ws = new WebSocket(`ws://localhost:${port}/ws`);
+function connect({ origin = ALLOWED_ORIGIN } = {}) {
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(`ws://localhost:${port}/ws`, {
+      ...(origin ? { origin } : {}),
+    });
     ws.inbox = [];
+    ws.closed = new Promise((resolveClose) => {
+      ws.once('close', (code) => {
+        ws.closeCode = code;
+        resolveClose(code);
+      });
+    });
     ws.on('message', (raw) => ws.inbox.push(JSON.parse(raw.toString())));
     ws.on('open', () => resolve(ws));
+    ws.on('unexpected-response', (_request, response) => {
+      response.resume();
+      reject(new Error(`WebSocket handshake rejected: ${response.statusCode}`));
+    });
+    ws.on('error', (error) => reject(error));
   });
 }
 
@@ -56,7 +76,51 @@ const login = async (userId) => {
   return ws;
 };
 
-describe('WebSocket gateway (CA-22, CA-27)', () => {
+describe('WebSocket gateway (CA-19, CA-22, CA-27)', () => {
+  it('accepts the configured Origin and rejects an unconfigured Origin', async () => {
+    const allowed = await connect();
+    expect(allowed.readyState).toBe(WebSocket.OPEN);
+    allowed.close();
+
+    await expect(connect({ origin: 'https://evil.example' }))
+      .rejects.toThrow('WebSocket handshake rejected: 403');
+  });
+
+  it('rejects a handshake with no Origin header', async () => {
+    await expect(connect({ origin: null }))
+      .rejects.toThrow('WebSocket handshake rejected: 403');
+  });
+
+  it('authenticates a valid token and returns auth:ok', async () => {
+    const ws = await login('alice');
+    expect(ws.inbox.find((m) => m.type === 'auth:ok').payload.userId).toBe('alice');
+    ws.close();
+  });
+
+  it('closes a connection when its auth token is missing', async () => {
+    const ws = await connect();
+    ws.send(JSON.stringify({ type: 'auth', payload: {} }));
+    const err = await waitFor(ws, 'error');
+    expect(err.payload.code).toBe('AUTH_FAILED');
+    expect(await ws.closed).toBe(4401);
+  });
+
+  it('rejects a second auth event after authentication', async () => {
+    const ws = await login('alice');
+    ws.send(JSON.stringify({ type: 'auth', payload: { token: 'bob' } }));
+    const err = await waitFor(ws, 'error');
+    expect(err.payload.code).toBe('AUTH_ALREADY_COMPLETED');
+    expect(await ws.closed).toBe(4401);
+  });
+
+  it('does not authenticate a token after the authentication deadline expires', async () => {
+    const ws = await connect();
+    ws.send(JSON.stringify({ type: 'auth', payload: { token: 'slow' } }));
+    expect(await ws.closed).toBe(4401);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(ws.inbox.some((message) => message.type === 'auth:ok')).toBe(false);
+  });
+
   it('delivers a saved message to the online recipient and acks the sender', async () => {
     const alice = await login('alice');
     const bob = await login('bob');
@@ -111,8 +175,7 @@ describe('WebSocket gateway (CA-22, CA-27)', () => {
 
   it('closes a connection that does not authenticate within the deadline', async () => {
     const ws = await connect();
-    const code = await new Promise((resolve) => ws.once('close', (closeCode) => resolve(closeCode)));
-    expect(code).toBe(4401);
+    expect(await ws.closed).toBe(4401);
     expect(ws.inbox.some((message) => message.payload && message.payload.message === 'Authenticate within 5 seconds')).toBe(true);
   });
 });
