@@ -9,6 +9,7 @@ const WebSocket = require('ws');
 
 const BASE_URL = (process.env.BASE_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
 const WS_URL = BASE_URL.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:') + '/ws';
+const WS_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:3000';
 const DURATION_SECONDS = readOption('duration', 600);
 const USERS = readOption('users', 20);
 const CLIENTS = readOption('clients', 100);
@@ -138,7 +139,8 @@ function handleServerEvent(event) {
 }
 
 async function connectSocket(user) {
-  const socket = new WebSocket(WS_URL);
+  // Match the Origin allow-list configured by the server (also used in CI).
+  const socket = new WebSocket(WS_URL, { origin: WS_ORIGIN });
   let authenticated = false;
   let resolveAuth;
   let rejectAuth;
