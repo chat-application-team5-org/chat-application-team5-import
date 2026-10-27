@@ -11,9 +11,10 @@ let port;
 
 const ALLOWED_ORIGIN = 'http://localhost:3000';
 
-// Test tokens are just the user id.
+// Test tokens are just the user id. "slow" simulates a delayed token verifier.
 const authenticate = async (token) => {
   if (!token) throw new Error('no token');
+  if (token === 'slow') await new Promise((resolve) => setTimeout(resolve, 250));
   return token;
 };
 
@@ -43,6 +44,12 @@ function connect({ origin = ALLOWED_ORIGIN } = {}) {
       ...(origin ? { origin } : {}),
     });
     ws.inbox = [];
+    ws.closed = new Promise((resolveClose) => {
+      ws.once('close', (code) => {
+        ws.closeCode = code;
+        resolveClose(code);
+      });
+    });
     ws.on('message', (raw) => ws.inbox.push(JSON.parse(raw.toString())));
     ws.on('open', () => resolve(ws));
     ws.on('unexpected-response', (_request, response) => {
@@ -95,8 +102,7 @@ describe('WebSocket gateway (CA-19, CA-22, CA-27)', () => {
     ws.send(JSON.stringify({ type: 'auth', payload: {} }));
     const err = await waitFor(ws, 'error');
     expect(err.payload.code).toBe('AUTH_FAILED');
-    const code = await new Promise((resolve) => ws.once('close', resolve));
-    expect(code).toBe(4401);
+    expect(await ws.closed).toBe(4401);
   });
 
   it('rejects a second auth event after authentication', async () => {
@@ -104,8 +110,15 @@ describe('WebSocket gateway (CA-19, CA-22, CA-27)', () => {
     ws.send(JSON.stringify({ type: 'auth', payload: { token: 'bob' } }));
     const err = await waitFor(ws, 'error');
     expect(err.payload.code).toBe('AUTH_ALREADY_COMPLETED');
-    const code = await new Promise((resolve) => ws.once('close', resolve));
-    expect(code).toBe(4401);
+    expect(await ws.closed).toBe(4401);
+  });
+
+  it('does not authenticate a token after the authentication deadline expires', async () => {
+    const ws = await connect();
+    ws.send(JSON.stringify({ type: 'auth', payload: { token: 'slow' } }));
+    expect(await ws.closed).toBe(4401);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(ws.inbox.some((message) => message.type === 'auth:ok')).toBe(false);
   });
 
   it('delivers a saved message to the online recipient and acks the sender', async () => {
@@ -162,8 +175,7 @@ describe('WebSocket gateway (CA-19, CA-22, CA-27)', () => {
 
   it('closes a connection that does not authenticate within the deadline', async () => {
     const ws = await connect();
-    const code = await new Promise((resolve) => ws.once('close', (closeCode) => resolve(closeCode)));
-    expect(code).toBe(4401);
+    expect(await ws.closed).toBe(4401);
     expect(ws.inbox.some((message) => message.payload && message.payload.message === 'Authenticate within 5 seconds')).toBe(true);
   });
 });
