@@ -94,6 +94,7 @@ function attachGateway(server, {
 
   wss.on('connection', (socket) => {
     socket.isAlive = true;
+    socket.authPending = false;
     const authTimeout = setTimeout(() => {
       if (socket.userId) return;
       send(socket, 'error', { code: 'AUTH_FAILED', message: 'Authenticate within 5 seconds' });
@@ -117,24 +118,38 @@ function attachGateway(server, {
       }
 
       if (msg && msg.type === 'auth') {
-        if (socket.userId) {
-          send(socket, 'error', { code: 'AUTH_ALREADY_COMPLETED', message: 'Connection is already authenticated' });
+        if (socket.userId || socket.authPending) {
+          send(socket, 'error', {
+            code: 'AUTH_ALREADY_COMPLETED',
+            message: 'Authentication is already in progress or complete',
+          });
           return socket.close(4401, 'AUTH_ALREADY_COMPLETED');
         }
 
+        socket.authPending = true;
         try {
           const token = msg.payload && msg.payload.token;
           const userId = await authenticate(token);
+
+          // A slow authenticator must not register a socket whose auth deadline
+          // expired or whose client disconnected while verification was pending.
+          if (socket.readyState !== socket.OPEN) return;
           if (typeof userId !== 'string' || !userId.trim()) {
             throw new Error('Token did not resolve to a user');
           }
+
           register(socket, userId);
           clearTimeout(authTimeout);
           return send(socket, 'auth:ok', { userId: socket.userId });
         } catch {
           clearTimeout(authTimeout);
-          send(socket, 'error', { code: 'AUTH_FAILED', message: 'Authentication failed' });
-          return socket.close(4401, 'AUTH_FAILED');
+          if (socket.readyState === socket.OPEN) {
+            send(socket, 'error', { code: 'AUTH_FAILED', message: 'Authentication failed' });
+            socket.close(4401, 'AUTH_FAILED');
+          }
+          return;
+        } finally {
+          socket.authPending = false;
         }
       }
 
