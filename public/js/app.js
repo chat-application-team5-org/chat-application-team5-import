@@ -78,13 +78,16 @@
   });
 
   // ---------- logout ----------
-  async function logout(message) {
-    await api.logout();
-    ws.close();
-    api.session.clear();
-    if (message) ui.toast('info', message);
-    showAuth('login');
-  }
+ async function logout(message) {
+  const logoutRequest = api.logout();
+  ws.close();
+  api.session.clear();
+  showAuth('login');
+
+  await logoutRequest;
+
+  if (message) ui.toast('info', message);
+}
   $('logout-btn').onclick = () => logout();
 
   // server told us the token is bad or expired
