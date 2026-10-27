@@ -97,7 +97,7 @@ describe('WebSocket gateway (CA-19, CA-22, CA-27)', () => {
     ws.close();
   });
 
-  it('closes a connection when its auth token is missing or invalid', async () => {
+  it('closes a connection when its auth token is missing', async () => {
     const ws = await connect();
     ws.send(JSON.stringify({ type: 'auth', payload: {} }));
     const err = await waitFor(ws, 'error');
