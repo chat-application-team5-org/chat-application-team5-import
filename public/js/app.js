@@ -140,10 +140,22 @@
   }
 
   let currentConversation = null;
+  let historyState = {
+    conversationId: null,
+    hasMore: false,
+    nextCursor: null,
+    loading: false,
+  };
   Chat.names = {}; // userId -> display name (the API returns ids only)
 
   async function openConversation(c) {
     currentConversation = c;
+    historyState = {
+      conversationId: c.conversationId,
+      hasMore: false,
+      nextCursor: null,
+      loading: false,
+    };
     // the API gives sender ids only; in a private chat the other person is called what the chat is called
     const me = (api.session.user || {}).userId;
     const other = (c.participants || []).find((id) => id !== me);
@@ -157,12 +169,42 @@
     $('chat-view').dataset.pane = 'chat';
     $('message-input').focus();
     try {
-      const res = await api.getMessages(c.conversationId);
-      if (currentConversation === c) Chat.messages.open(c.conversationId, res.messages || []);
-    } catch {
-      // history endpoint arrives with CA-28; the pane stays usable for live messages until then
+      const res = await api.getMessages(c.conversationId, { limit: 50 });
+      if (currentConversation === c && historyState.conversationId === c.conversationId) {
+        Chat.messages.open(c.conversationId, res.messages || []);
+        historyState.hasMore = Boolean(res.hasMore);
+        historyState.nextCursor = res.nextCursor || null;
+      }
+    } catch (err) {
+      ui.toast('error', err.message || 'Could not load message history.');
     }
   }
+
+  async function loadOlderMessages() {
+    const state = historyState;
+    const conversation = currentConversation;
+    if (!conversation || !state.hasMore || !state.nextCursor || state.loading) return;
+
+    state.loading = true;
+    try {
+      const res = await api.getMessages(conversation.conversationId, {
+        limit: 50,
+        before: state.nextCursor,
+      });
+      if (currentConversation !== conversation || historyState !== state) return;
+      Chat.messages.prepend(res.messages || []);
+      state.hasMore = Boolean(res.hasMore);
+      state.nextCursor = res.nextCursor || null;
+    } catch (err) {
+      ui.toast('error', err.message || 'Could not load older messages.');
+    } finally {
+      state.loading = false;
+    }
+  }
+
+  $('message-pane').addEventListener('scroll', () => {
+    if ($('message-pane').scrollTop <= 50) void loadOlderMessages();
+  });
 
   $('back-btn').onclick = () => { $('chat-view').dataset.pane = 'list'; };
 

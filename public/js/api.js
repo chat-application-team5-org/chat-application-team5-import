@@ -85,10 +85,21 @@ window.Chat = window.Chat || {};
       const res = await request('GET', '/api/conversations');
       return (Array.isArray(res) ? res : (res && res.conversations) || []).map(normalizeConversation);
     },
-    // latest 50 messages (REQ-24); resolves to { messages, hasMore }
-    getMessages: async (conversationId) => {
-      const res = await request('GET', '/api/conversations/' + encodeURIComponent(conversationId) + '/messages');
-      return { messages: ((res && res.messages) || []).map(normalizeMessage), hasMore: Boolean(res && res.hasMore) };
+    // Message history supports the latest page, older pages, and missed-message sync.
+    getMessages: async (conversationId, options = {}) => {
+      const params = new URLSearchParams();
+      ['limit', 'before', 'after'].forEach((key) => {
+        if (options[key] !== undefined && options[key] !== null) params.set(key, String(options[key]));
+      });
+      const query = params.toString();
+      const path = '/api/conversations/' + encodeURIComponent(conversationId) + '/messages'
+        + (query ? '?' + query : '');
+      const res = await request('GET', path);
+      return {
+        messages: ((res && res.messages) || []).map(normalizeMessage),
+        hasMore: Boolean(res && res.hasMore),
+        nextCursor: (res && res.nextCursor) || null,
+      };
     },
     normalize: { message: normalizeMessage, conversation: normalizeConversation },
   };

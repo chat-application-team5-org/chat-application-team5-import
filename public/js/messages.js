@@ -124,6 +124,17 @@ window.Chat = window.Chat || {};
     pane().scrollTop = pane().scrollHeight;
   }
 
+  // Add an older page at the beginning while preserving the visible viewport.
+  function prepend(list) {
+    const box = pane();
+    const oldHeight = box.scrollHeight;
+    const oldTop = box.scrollTop;
+    (list || []).forEach(upsert);
+    sortItems();
+    render();
+    box.scrollTop = oldTop + (box.scrollHeight - oldHeight);
+  }
+
   function add(m) {
     if (m.conversationId !== conversationId) return false; // other conversations: unread badge is CA-38
     upsert(m);
@@ -146,5 +157,5 @@ window.Chat = window.Chat || {};
     if (m) { m.status = 'FAILED'; render(); }
   }
 
-  Chat.messages = { open, add, setStatus, markFailed };
+  Chat.messages = { open, prepend, add, setStatus, markFailed };
 })(window.Chat);

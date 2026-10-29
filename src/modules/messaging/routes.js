@@ -92,24 +92,43 @@ router.get('/:id/messages', async (req, res, next) => {
 
     const requested = Number.parseInt(req.query.limit, 10);
     const limit = Math.min(Number.isNaN(requested) || requested < 1 ? DEFAULT_LIMIT : requested, MAX_LIMIT);
+    const hasBefore = req.query.before !== undefined;
+    const hasAfter = req.query.after !== undefined;
+    if (hasBefore && hasAfter) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Use either before or after, not both.');
+    }
+
     const query = { conversation: conversation._id };
-    if (req.query.before !== undefined) {
+    let sort = { _id: -1 };
+    const ascending = hasAfter;
+    if (hasBefore) {
       if (!mongoose.isValidObjectId(req.query.before)) {
         throw new AppError(400, 'VALIDATION_ERROR', 'A valid before cursor is required.');
       }
       query._id = { $lt: new mongoose.Types.ObjectId(req.query.before) };
+    } else if (hasAfter) {
+      if (!mongoose.isValidObjectId(req.query.after)) {
+        throw new AppError(400, 'VALIDATION_ERROR', 'A valid after cursor is required.');
+      }
+      query._id = { $gt: new mongoose.Types.ObjectId(req.query.after) };
+      sort = { _id: 1 };
     }
 
     const rows = await Message.find(query)
       .populate('sender', 'username')
-      .sort({ _id: -1 })
+      .sort(sort)
       .limit(limit + 1);
     const hasMore = rows.length > limit;
-    const page = rows.slice(0, limit).reverse();
+    const selected = rows.slice(0, limit);
+    const page = ascending ? selected : selected.reverse();
     res.status(200).json({
       messages: page,
       hasMore,
-      nextCursor: hasMore && page.length ? String(page[0]._id) : null,
+      // For "before", continue from the oldest returned item; for "after",
+      // continue from the newest returned item.
+      nextCursor: hasMore && page.length
+        ? String(ascending ? page[page.length - 1]._id : page[0]._id)
+        : null,
     });
   } catch (error) {
     next(error);

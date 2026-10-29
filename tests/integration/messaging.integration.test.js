@@ -268,4 +268,31 @@ test('offline messages replay after reconnect, are acknowledged once, and surviv
   expect(olderHistory.data.messages.map((message) => message.content)).toContain('Offline hello');
   const firstPageIds = new Set(history.data.messages.map((message) => String(message._id)));
   expect(olderHistory.data.messages.every((message) => !firstPageIds.has(String(message._id)))).toBe(true);
+
+
+  // ?after returns newer messages in chronological order for reconnect/history sync.
+  const afterCursor = String(olderHistory.data.messages[0]._id);
+  const afterPage = await requestJson(
+    `/api/conversations/${conversationId}/messages?after=${afterCursor}&limit=10`,
+    { token: loginB.data.token }
+  );
+  expect(afterPage.response.status).toBe(200);
+  expect(afterPage.data.messages).toHaveLength(10);
+  expect(afterPage.data.hasMore).toBe(true);
+  expect(String(afterPage.data.messages[0]._id) > afterCursor).toBe(true);
+  expect(afterPage.data.nextCursor).toBe(String(afterPage.data.messages[9]._id));
+
+  const afterPageTwo = await requestJson(
+    `/api/conversations/${conversationId}/messages?after=${afterPage.data.nextCursor}&limit=10`,
+    { token: loginB.data.token }
+  );
+  expect(afterPageTwo.response.status).toBe(200);
+  const afterPageOneIds = new Set(afterPage.data.messages.map((message) => String(message._id)));
+  expect(afterPageTwo.data.messages.every((message) => !afterPageOneIds.has(String(message._id)))).toBe(true);
+
+  const conflictingCursors = await requestJson(
+    `/api/conversations/${conversationId}/messages?before=${history.data.nextCursor}&after=${afterCursor}`,
+    { token: loginB.data.token }
+  );
+  expect(conflictingCursors.response.status).toBe(400);
 });
