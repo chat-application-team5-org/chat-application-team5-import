@@ -1,11 +1,16 @@
 const jwt = require('jsonwebtoken');
 const { WebSocketServer } = require('ws');
 const config = require('../config');
+const User = require('../models/User');
 const {
   sendMessage,
   loadPendingMessagesForRecipient,
   markMessageDelivered,
 } = require('../modules/messaging/messageService');
+const {
+  markOnline,
+  markOffline,
+} = require('../modules/presence/presenceService');
 
 const PING_INTERVAL_MS = 30000;
 const MAX_PAYLOAD_BYTES = 4096;
@@ -52,19 +57,76 @@ function attachGateway(server, {
   // userId -> set of that user's open sockets (CA-22)
   const online = new Map();
 
-  function register(socket, userId) {
-    socket.userId = userId;
-    if (!online.has(userId)) online.set(userId, new Set());
-    online.get(userId).add(socket);
+function register(socket, userId) {
+  socket.userId = userId;
+
+  if (!online.has(userId)) {
+    online.set(userId, new Set());
   }
 
-  function unregister(socket) {
-    if (!socket.userId) return;
-    const sockets = online.get(socket.userId);
-    if (!sockets) return;
-    sockets.delete(socket);
-    if (sockets.size === 0) online.delete(socket.userId);
+  const sockets = online.get(userId);
+  const wasOffline = sockets.size === 0;
+  sockets.add(socket);
+
+  if (wasOffline) {
+    markOnline(userId);
+    broadcastPresence(userId, 'online');
   }
+  for (const [onlineUserId] of online) {
+   if (onlineUserId !== userId) {
+    send(socket, 'presence:update', {
+      userId: String(onlineUserId),
+      status: 'online',
+      lastSeen: null,
+    });
+  }
+}
+
+}
+
+
+
+function unregister(socket) {
+  if (!socket.userId) return;
+
+  const userId = socket.userId;
+  const sockets = online.get(userId);
+
+  if (!sockets) return;
+
+  sockets.delete(socket);
+
+  if (sockets.size === 0) {
+    online.delete(userId);
+
+    const lastSeen = markOffline(userId);
+
+    if (lastSeen) {
+      if (/^[0-9a-fA-F]{24}$/.test(String(userId))) {
+        void User.findByIdAndUpdate(userId, { lastSeen })
+          .catch((error) => {
+            console.error('Failed to update last-seen timestamp:', error.message);
+          });
+      }
+
+      broadcastPresence(userId, 'offline', lastSeen);
+    }
+  }
+}
+
+function broadcastPresence(userId, status, lastSeen = null) {
+  const payload = {
+    userId: String(userId),
+    status,
+    lastSeen: lastSeen ? lastSeen.toISOString() : null,
+  };
+
+  wss.clients.forEach((client) => {
+    if (client.readyState === client.OPEN && client.userId !== String(userId)) {
+      send(client, 'presence:update', payload);
+    }
+  });
+}
 
   async function replayPendingMessages(socket, userId) {
     try {

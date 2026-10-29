@@ -116,7 +116,6 @@
       // The conversations endpoint arrives with CA-21; keep the shell usable until then.
       list.appendChild(emptyItem('No conversations yet'));
     }
-    $('online-list').replaceChildren(emptyItem('No one online'));
   }
 
   function convItem(c) {
@@ -248,6 +247,63 @@
     if (!Chat.mock.enabled && messageId) ws.send('message:ack', { messageId: String(messageId) });
   });
   ws.on('message:status', (p) => Chat.messages.setStatus(p)); // SENT / DELIVERED / READ ticks
+    const presenceUsers = new Map();
+
+  function renderPresence() {
+    const list = $('online-list');
+    list.replaceChildren();
+
+    const users = Array.from(presenceUsers.values());
+
+    if (!users.length) {
+      list.appendChild(emptyItem('No one online'));
+      return;
+    }
+
+    users.forEach((user) => {
+      const li = document.createElement('li');
+      li.className = 'conv';
+
+      const name = document.createElement('div');
+      name.className = 'conv-name';
+      name.textContent = Chat.names[user.userId] || user.userId;
+
+      const status = document.createElement('div');
+      status.className = 'conv-last';
+
+      if (user.status === 'online') {
+        status.textContent = 'Online';
+      } else {
+        status.textContent = user.lastSeen
+          ? `Last seen: ${new Date(user.lastSeen).toLocaleString()}`
+          : 'Offline';
+      }
+
+      li.append(name, status);
+      list.appendChild(li);
+    });
+  }
+
+  ws.on('presence:update', (p) => {
+    if (!p || !p.userId) return;
+
+    if (p.status === 'online') {
+      presenceUsers.set(p.userId, {
+        userId: p.userId,
+        status: 'online',
+        lastSeen: null,
+      });
+    } else if (p.status === 'offline') {
+      presenceUsers.set(p.userId, {
+        userId: p.userId,
+        status: 'offline',
+        lastSeen: p.lastSeen || null,
+      });
+    }
+
+    renderPresence();
+  });
+
 
   // TODO CA-38: unread badge for messages in other conversations.
   // TODO CA-39: user search results and "start chat" (REQ-31)

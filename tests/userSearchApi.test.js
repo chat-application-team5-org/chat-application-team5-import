@@ -36,12 +36,20 @@ describe('GET /api/users/search (CA-39)', () => {
       .set('Authorization', bearer());
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual([{ userId: bobId, username: 'bob', displayName: 'bob' }]);
+    expect(response.body).toEqual([
+  {
+    userId: bobId,
+    username: 'bob',
+    displayName: 'bob',
+    status: 'offline',
+    lastSeen: null,
+  },
+]);
     expect(User.find).toHaveBeenCalledWith({
       _id: { $ne: aliceId },
       username: { $regex: 'B', $options: 'i' },
     });
-    expect(query.select).toHaveBeenCalledWith('_id username');
+    expect(query.select).toHaveBeenCalledWith('_id username lastSeen');
     expect(query.sort).toHaveBeenCalledWith({ username: 1 });
     expect(query.limit).toHaveBeenCalledWith(10);
   });

@@ -6,12 +6,16 @@ jest.mock('../src/modules/messaging/messageService', () => ({
   loadPendingMessagesForRecipient: jest.fn(),
   markMessageDelivered: jest.fn(),
 }));
+jest.mock('../src/models/User', () => ({
+  findByIdAndUpdate: jest.fn().mockResolvedValue({}),
+}));
 const {
   sendMessage,
   loadPendingMessagesForRecipient,
   markMessageDelivered,
 } = require('../src/modules/messaging/messageService');
 const { attachGateway } = require('../src/ws/gateway');
+const User = require('../src/models/User');
 
 let server;
 let wss;
@@ -48,6 +52,7 @@ beforeEach(() => {
   sendMessage.mockReset();
   loadPendingMessagesForRecipient.mockReset().mockResolvedValue([]);
   markMessageDelivered.mockReset();
+  User.findByIdAndUpdate.mockReset().mockResolvedValue({});
 });
 
 function connect({ origin = ALLOWED_ORIGIN } = {}) {
@@ -221,5 +226,120 @@ describe('WebSocket gateway (CA-19, CA-22, CA-27, CA-24)', () => {
     const ws = await connect();
     expect(await ws.closed).toBe(4401);
     expect(ws.inbox.some((message) => message.payload && message.payload.message === 'Authenticate within 5 seconds')).toBe(true);
+  });
+});
+describe('Online/offline presence (CA-33)', () => {
+  test('broadcasts online status when a user authenticates', async () => {
+    const alice = await login('alice');
+    const bob = await login('bob');
+
+    try {
+      const presence = await waitFor(alice, 'presence:update');
+
+      expect(presence.payload).toEqual({
+        userId: 'bob',
+        status: 'online',
+        lastSeen: null,
+      });
+    } finally {
+      alice.close();
+      bob.close();
+    }
+    });
+  test('broadcasts offline status and last-seen when a user disconnects', async () => {
+    const alice = await login('alice');
+    const bob = await login('bob');
+
+    try {
+      await waitFor(alice, 'presence:update');
+
+      bob.close();
+
+      let presence;
+
+for (let i = 0; i < 100; i += 1) {
+  presence = alice.inbox.find(
+    (message) =>
+      message.type === 'presence:update' &&
+      message.payload.userId === 'bob' &&
+      message.payload.status === 'offline'
+  );
+
+  if (presence) break;
+
+  await new Promise((resolve) => setTimeout(resolve, 10));
+}
+
+expect(presence).toBeDefined();
+
+      expect(presence.payload.userId).toBe('bob');
+      expect(presence.payload.status).toBe('offline');
+      expect(presence.payload.lastSeen).toEqual(expect.any(String));
+      expect(Number.isNaN(Date.parse(presence.payload.lastSeen))).toBe(false);
+    } finally {
+      alice.close();
+      if (bob.readyState === WebSocket.OPEN) bob.close();
+    }
+  });
+    test('keeps a user online while another connection remains active', async () => {
+    const alice = await login('alice');
+    const bob1 = await login('bob');
+    const bob2 = await login('bob');
+
+    try {
+      await waitFor(alice, 'presence:update');
+
+      bob1.close();
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const prematureOffline = alice.inbox.some(
+        (message) =>
+          message.type === 'presence:update' &&
+          message.payload.userId === 'bob' &&
+          message.payload.status === 'offline'
+      );
+
+      expect(prematureOffline).toBe(false);
+
+      bob2.close();
+
+      let offlinePresence;
+
+      for (let i = 0; i < 100; i += 1) {
+        offlinePresence = alice.inbox.find(
+          (message) =>
+            message.type === 'presence:update' &&
+            message.payload.userId === 'bob' &&
+            message.payload.status === 'offline'
+        );
+
+        if (offlinePresence) break;
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+
+      expect(offlinePresence).toBeDefined();
+    } finally {
+      alice.close();
+      if (bob1.readyState === WebSocket.OPEN) bob1.close();
+      if (bob2.readyState === WebSocket.OPEN) bob2.close();
+    }
+  });
+  test('sends existing online users to a newly connected user', async () => {    const alice = await login('alice');
+    const bob = await login('bob');
+
+    try {
+      const presence = await waitFor(bob, 'presence:update');
+
+      expect(presence.payload).toEqual({
+        userId: 'alice',
+        status: 'online',
+        lastSeen: null,
+      });
+    } finally {
+      alice.close();
+      bob.close();
+    }
   });
 });
