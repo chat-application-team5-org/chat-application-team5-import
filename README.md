@@ -51,19 +51,42 @@ MongoDB service for this test.
 
 The authenticated browser shell loads the latest 50 messages, supports cursor-based loading of older history when scrolling to the top, displays sender/time/status, shows a pending message immediately, and replaces its status after the server's persist-before-acknowledge response. Starting a new conversation from user search is supported.
 
-## Offline message delivery (CA-24)
-
-Messages are written to MongoDB before the sender receives a `SENT` status. When an authenticated recipient connects, the server replays incoming messages that remain `SENT`. The client acknowledges a received message using `message:ack`; the server verifies that the acknowledger is a conversation participant other than the sender, records `DELIVERED`, and notifies the sender's active WebSocket sessions. If a client disconnects before its acknowledgement reaches the server, the message remains pending and is replayed on a later connection. Replays are at-least-once until acknowledged; the UI de-duplicates by persisted message ID, and the REST history remains durable.
-
 ## Project structure
 ```
 src/
   server.js          entry point (HTTP + WebSocket)
   app.js             Express app (routes, middleware)
   config.js          environment configuration
-  modules/            auth, messaging and users
-  models/             User, Conversation, Message
-public/               browser client
-tests/                unit and MongoDB-backed integration tests
-docs/                 SRS, SAD, Test Plan and sprint records
+  db/                MongoDB connection and Mongoose models
+  middleware/        auth, validation, rate limiting, error handling
+  ws/                WebSocket gateway
+  modules/           auth, messaging, group, presence, history, status, profile
+public/              web client (HTML/CSS/JS)
+tests/               Jest tests
+docs/                SRS, SAD, Test Plan, sprint backlog and demo guide
 ```
+Module names match the architecture in the SAD (section 3.3).
+
+## Team workflow
+1. Pick the relevant task from the current sprint in the repository's GitHub Issues/project tracking.
+2. Create a branch such as `feature/CA-14-data-models`; keep the task key in the branch and commit names when one is assigned.
+3. Commit changes in small, focused steps.
+4. Push the branch and open a pull request into `main`; another team member reviews it.
+5. Merge after required reviews and checks pass, then update the corresponding GitHub task/status to reflect the actual result.
+
+The file [`docs/SPRINT_BACKLOG_SNAPSHOT.md`](docs/SPRINT_BACKLOG_SNAPSHOT.md) is a historical planning snapshot from 7 October 2026, not the live task status. Use the current GitHub sprint/task tracking as the source of truth and refresh the snapshot when needed. The Sprint 1 demo guide and video are in [`docs/SPRINT1_DEMO.md`](docs/SPRINT1_DEMO.md) and [`docs/Team5_Sprint1_Chat_Demo.mp4.mp4`](docs/Team5_Sprint1_Chat_Demo.mp4.mp4).
+
+Never commit `.env`, passwords or tokens.
+
+## Team
+| Name | SRN |
+|---|---|
+| Harsh Kalekar | PES1UG24CS183 |
+| Chetha Samrutha | PES1UG24CS131 |
+| Gagan | PES1UG24CS165 |
+| Dhanush K S | PES1UG24CS148 |
+
+
+## Offline message delivery (CA-24)
+
+Messages are written to MongoDB before the sender receives a `SENT` status. When an authenticated recipient connects, the server replays incoming messages that remain `SENT`. The client acknowledges a received message using `message:ack`; the server verifies that the acknowledger is a conversation participant other than the sender, records `DELIVERED`, and notifies the sender's active WebSocket sessions. If a client disconnects before its acknowledgement reaches the server, the message remains pending and is replayed on a later connection. Replays are at-least-once until acknowledged; the UI de-duplicates by persisted message ID, and the REST history remains durable.
