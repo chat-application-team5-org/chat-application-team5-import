@@ -22,5 +22,7 @@ const messageSchema = new mongoose.Schema(
 
 messageSchema.index({ conversation: 1, createdAt: 1 });
 messageSchema.index({ conversation: 1, _id: -1 });
+// CA-24: efficiently find messages that still need delivery to a recipient.
+messageSchema.index({ conversation: 1, status: 1, createdAt: 1 });
 
 module.exports = mongoose.model('Message', messageSchema);

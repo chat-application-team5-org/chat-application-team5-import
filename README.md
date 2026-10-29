@@ -47,7 +47,7 @@ MongoDB service for this test.
 - `POST /api/auth/logout` with a bearer token
 - `POST /api/conversations` with `{ "participantId" }` and a bearer token
 - `GET /api/conversations` and `GET /api/conversations/:id/messages` with a bearer token
-- WebSocket messages use `ws://localhost:3000/ws`; send an `auth` event containing the JWT before other events
+- WebSocket messages use `ws://localhost:3000/ws`; send an `auth` event containing the JWT before other events. The server emits `message:new` for online or pending messages; the receiving client sends `message:ack` with the persisted `messageId` to confirm delivery. The sender receives `message:status` updates for `SENT` and `DELIVERED`.
 
 The authenticated browser shell loads the latest 50 messages, supports cursor-based loading of older history when scrolling to the top, displays sender/time/status, shows a pending message immediately, and replaces its status after the server's persist-before-acknowledge response. Starting a new conversation from user search is supported.
 
@@ -85,3 +85,8 @@ Never commit `.env`, passwords or tokens.
 | Chetha Samrutha | PES1UG24CS131 |
 | Gagan | PES1UG24CS165 |
 | Dhanush K S | PES1UG24CS148 |
+
+
+## Offline message delivery (CA-24)
+
+Messages are written to MongoDB before the sender receives a `SENT` status. When an authenticated recipient connects, the server replays incoming messages that remain `SENT`. The client acknowledges a received message using `message:ack`; the server verifies that the acknowledger is a conversation participant other than the sender, records `DELIVERED`, and notifies the sender's active WebSocket sessions. If a client disconnects before its acknowledgement reaches the server, the message remains pending and is replayed on a later connection. Replays are at-least-once until acknowledged; the UI de-duplicates by persisted message ID, and the REST history remains durable.

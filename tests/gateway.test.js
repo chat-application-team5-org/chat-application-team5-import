@@ -1,8 +1,16 @@
 const http = require('http');
 const WebSocket = require('ws');
 
-jest.mock('../src/modules/messaging/messageService', () => ({ sendMessage: jest.fn() }));
-const { sendMessage } = require('../src/modules/messaging/messageService');
+jest.mock('../src/modules/messaging/messageService', () => ({
+  sendMessage: jest.fn(),
+  loadPendingMessagesForRecipient: jest.fn(),
+  markMessageDelivered: jest.fn(),
+}));
+const {
+  sendMessage,
+  loadPendingMessagesForRecipient,
+  markMessageDelivered,
+} = require('../src/modules/messaging/messageService');
 const { attachGateway } = require('../src/ws/gateway');
 
 let server;
@@ -36,7 +44,11 @@ afterAll((done) => {
   wss.close(() => server.close(done));
 });
 
-beforeEach(() => sendMessage.mockReset());
+beforeEach(() => {
+  sendMessage.mockReset();
+  loadPendingMessagesForRecipient.mockReset().mockResolvedValue([]);
+  markMessageDelivered.mockReset();
+});
 
 function connect({ origin = ALLOWED_ORIGIN } = {}) {
   return new Promise((resolve, reject) => {
@@ -76,7 +88,7 @@ const login = async (userId) => {
   return ws;
 };
 
-describe('WebSocket gateway (CA-19, CA-22, CA-27)', () => {
+describe('WebSocket gateway (CA-19, CA-22, CA-27, CA-24)', () => {
   it('accepts the configured Origin and rejects an unconfigured Origin', async () => {
     const allowed = await connect();
     expect(allowed.readyState).toBe(WebSocket.OPEN);
@@ -132,6 +144,38 @@ describe('WebSocket gateway (CA-19, CA-22, CA-27)', () => {
     expect(ack.payload).toMatchObject({ clientMsgId: 'x1', messageId: 'm1', status: 'SENT' });
     const incoming = await waitFor(bob, 'message:new');
     expect(incoming.payload.message.content).toBe('Hi');
+    alice.close();
+    bob.close();
+  });
+
+  it('replays pending messages after authentication', async () => {
+    loadPendingMessagesForRecipient.mockResolvedValue([
+      { _id: 'pending-1', content: 'Stored while offline' },
+    ]);
+    const bob = await login('bob');
+    const replay = await waitFor(bob, 'message:new');
+    expect(replay.payload.message).toMatchObject({ _id: 'pending-1', content: 'Stored while offline' });
+    expect(loadPendingMessagesForRecipient).toHaveBeenCalledWith({ recipientId: 'bob' });
+    bob.close();
+  });
+
+  it('marks a message delivered only after recipient acknowledgement and notifies the sender', async () => {
+    const alice = await login('alice');
+    const bob = await login('bob');
+    markMessageDelivered.mockResolvedValue({
+      message: { _id: 'm2', sender: 'alice', clientMsgId: 'x2' },
+      newlyDelivered: true,
+    });
+
+    bob.send(JSON.stringify({ type: 'message:ack', payload: { messageId: 'm2' } }));
+
+    const deliveryStatus = await waitFor(alice, 'message:status');
+    expect(deliveryStatus.payload).toMatchObject({
+      clientMsgId: 'x2',
+      messageId: 'm2',
+      status: 'DELIVERED',
+    });
+    expect(markMessageDelivered).toHaveBeenCalledWith({ recipientId: 'bob', messageId: 'm2' });
     alice.close();
     bob.close();
   });
