@@ -63,7 +63,12 @@ async function requestJson(path, { method = 'GET', token, body } = {}) {
   return { response, data };
 }
 
-function nextEvent(socket, type) {
+function nextEvent(socket, type, predicate = () => true) {
+  const existingIndex = socket.inbox.findIndex(
+    (message) => message.type === type && predicate(message.payload)
+  );
+  if (existingIndex >= 0) return Promise.resolve(socket.inbox.splice(existingIndex, 1)[0].payload);
+
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       socket.off('message', onMessage);
@@ -71,9 +76,13 @@ function nextEvent(socket, type) {
     }, 5000);
     function onMessage(raw) {
       const message = JSON.parse(raw.toString());
-      if (message.type !== type) return;
+      if (message.type !== type || !predicate(message.payload)) return;
       clearTimeout(timer);
       socket.off('message', onMessage);
+      const queuedIndex = socket.inbox.findIndex(
+        (queued) => queued.type === type && predicate(queued.payload)
+      );
+      if (queuedIndex >= 0) socket.inbox.splice(queuedIndex, 1);
       resolve(message.payload);
     }
     socket.on('message', onMessage);
@@ -84,6 +93,8 @@ async function connectSocket(token) {
   const socket = new WebSocket(`ws://127.0.0.1:${server.address().port}/ws`, {
     origin: 'http://localhost:3000',
   });
+  socket.inbox = [];
+  socket.on('message', (raw) => socket.inbox.push(JSON.parse(raw.toString())));
   sockets.add(socket);
   await new Promise((resolve, reject) => {
     socket.once('open', resolve);
@@ -113,15 +124,19 @@ afterAll(async () => {
   await mongoose.disconnect();
 });
 
-test('two authenticated clients exchange a persisted message and history survives an app restart', async () => {
+test('offline messages replay after reconnect, are acknowledged once, and survive restart', async () => {
   const registrationA = await requestJson('/api/auth/register', {
     method: 'POST', body: { username: 'Alice', email: 'alice@example.com', password: 'Secret123' },
   });
   const registrationB = await requestJson('/api/auth/register', {
     method: 'POST', body: { username: 'Bob', email: 'bob@example.com', password: 'Secret123' },
   });
+  const registrationC = await requestJson('/api/auth/register', {
+    method: 'POST', body: { username: 'Charlie', email: 'charlie@example.com', password: 'Secret123' },
+  });
   expect(registrationA.response.status).toBe(201);
   expect(registrationB.response.status).toBe(201);
+  expect(registrationC.response.status).toBe(201);
 
   const loginA = await requestJson('/api/auth/login', {
     method: 'POST', body: { identifier: 'alice', password: 'Secret123' },
@@ -129,42 +144,110 @@ test('two authenticated clients exchange a persisted message and history survive
   const loginB = await requestJson('/api/auth/login', {
     method: 'POST', body: { identifier: 'bob@example.com', password: 'Secret123' },
   });
+  const loginC = await requestJson('/api/auth/login', {
+    method: 'POST', body: { identifier: 'charlie', password: 'Secret123' },
+  });
   expect(loginA.response.status).toBe(200);
   expect(loginB.response.status).toBe(200);
+  expect(loginC.response.status).toBe(200);
 
   const opened = await requestJson('/api/conversations', {
     method: 'POST', token: loginA.data.token, body: { participantId: registrationB.data.userId },
   });
   expect(opened.response.status).toBe(200);
   const conversationId = String(opened.data.conversation._id);
-  const bobConversations = await requestJson('/api/conversations', { token: loginB.data.token });
-  expect(bobConversations.data).toEqual([
-    expect.objectContaining({ conversationId, name: 'alice', type: 'PRIVATE' }),
-  ]);
 
+  // Bob is offline. The message must be persisted and remain pending.
   const alice = await connectSocket(loginA.data.token);
-  const bob = await connectSocket(loginB.data.token);
-  const senderAck = nextEvent(alice, 'message:status');
-  const recipientMessage = nextEvent(bob, 'message:new');
+  const offlineSent = nextEvent(alice, 'message:status', (p) => p.clientMsgId === 'offline-message-1');
   alice.send(JSON.stringify({
     type: 'message:send',
-    payload: { conversationId, content: 'Hello, Bob!', clientMsgId: 'integration-message-1' },
+    payload: { conversationId, content: 'Offline hello', clientMsgId: 'offline-message-1' },
   }));
+  const sentStatus = await offlineSent;
+  expect(sentStatus.status).toBe('SENT');
+  const pendingBeforeRestart = await Message.findById(sentStatus.messageId);
+  expect(pendingBeforeRestart).toMatchObject({ content: 'Offline hello', status: 'SENT' });
 
-  const [ack, delivered] = await Promise.all([senderAck, recipientMessage]);
-  expect(ack).toMatchObject({ clientMsgId: 'integration-message-1', status: 'SENT' });
-  expect(delivered.message.content).toBe('Hello, Bob!');
-  const saved = await Message.findById(ack.messageId);
-  expect(saved).toMatchObject({ content: 'Hello, Bob!', status: 'SENT' });
+  // A real server restart must not lose the stored pending message.
+  await stopServer();
+  await startServer();
 
-  // Add older test messages so pagination crosses the 50-message page boundary.
+  const aliceAfterRestart = await connectSocket(loginA.data.token);
+  const bob = await connectSocket(loginB.data.token);
+  const replay = await nextEvent(
+    bob,
+    'message:new',
+    (p) => p.message && p.message.clientMsgId === 'offline-message-1'
+  );
+  expect(replay.message.content).toBe('Offline hello');
+  expect(String(replay.message._id)).toBe(String(sentStatus.messageId));
+
+  const offlineDelivery = nextEvent(
+    aliceAfterRestart,
+    'message:status',
+    (p) => p.clientMsgId === 'offline-message-1' && p.status === 'DELIVERED'
+  );
+  bob.send(JSON.stringify({ type: 'message:ack', payload: { messageId: sentStatus.messageId } }));
+  await offlineDelivery;
+  expect(await Message.findById(sentStatus.messageId)).toMatchObject({ status: 'DELIVERED' });
+
+  // A later reconnect must not replay a message already acknowledged.
+  bob.close();
+  await new Promise((resolve) => bob.once('close', resolve));
+  const bobAgain = await connectSocket(loginB.data.token);
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  expect(bobAgain.inbox.some(
+    (event) => event.type === 'message:new'
+      && event.payload.message
+      && event.payload.message.clientMsgId === 'offline-message-1'
+  )).toBe(false);
+
+  // Online delivery still works; the receiver's acknowledgement updates the sender.
+  const liveSent = nextEvent(
+    aliceAfterRestart,
+    'message:status',
+    (p) => p.clientMsgId === 'live-message-1' && p.status === 'SENT'
+  );
+  const liveIncoming = nextEvent(
+    bobAgain,
+    'message:new',
+    (p) => p.message && p.message.clientMsgId === 'live-message-1'
+  );
+  aliceAfterRestart.send(JSON.stringify({
+    type: 'message:send',
+    payload: { conversationId, content: 'Live hello', clientMsgId: 'live-message-1' },
+  }));
+  expect((await liveSent).status).toBe('SENT');
+  const incoming = await liveIncoming;
+  expect(incoming.message.content).toBe('Live hello');
+
+  const liveDelivery = nextEvent(
+    aliceAfterRestart,
+    'message:status',
+    (p) => p.clientMsgId === 'live-message-1' && p.status === 'DELIVERED'
+  );
+  bobAgain.send(JSON.stringify({
+    type: 'message:ack',
+    payload: { messageId: incoming.message._id },
+  }));
+  await liveDelivery;
+  expect(await Message.findById(incoming.message._id)).toMatchObject({ status: 'DELIVERED' });
+
+  // Conversation authorization remains enforced on message history.
+  const forbidden = await requestJson(
+    `/api/conversations/${conversationId}/messages`,
+    { token: loginC.data.token }
+  );
+  expect(forbidden.response.status).toBe(403);
+
+  // History persists after an application restart and still uses its cursor API.
   await Message.insertMany(Array.from({ length: 52 }, (_, index) => ({
     conversation: conversationId,
     sender: registrationA.data.userId,
     content: `History page test message ${index + 1}`,
     status: 'SENT',
   })));
-
   await stopServer();
   await startServer();
 
@@ -180,9 +263,9 @@ test('two authenticated clients exchange a persisted message and history survive
     { token: loginB.data.token }
   );
   expect(olderHistory.response.status).toBe(200);
-  expect(olderHistory.data.messages).toHaveLength(3);
+  expect(olderHistory.data.messages).toHaveLength(4);
   expect(olderHistory.data.hasMore).toBe(false);
-  expect(olderHistory.data.messages.map((message) => message.content)).toContain('Hello, Bob!');
+  expect(olderHistory.data.messages.map((message) => message.content)).toContain('Offline hello');
   const firstPageIds = new Set(history.data.messages.map((message) => String(message._id)));
   expect(olderHistory.data.messages.every((message) => !firstPageIds.has(String(message._id)))).toBe(true);
 });

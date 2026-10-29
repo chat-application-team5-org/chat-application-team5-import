@@ -197,11 +197,17 @@
     input.value = '';
   });
 
-  // events pushed by the server
-  // the server sends { message: <document> } (gateway.js); flat objects are accepted too
-  ws.on('message:new', (p) => Chat.messages.add(api.normalize.message((p && p.message) || p))); // TODO CA-38: unread badge for other conversations
+  // Events pushed by the server. Receipt acknowledgements let it stop replaying
+  // offline messages after this client has received them.
+  ws.on('message:new', (p) => {
+    const message = (p && p.message) || p;
+    Chat.messages.add(api.normalize.message(message));
+    const messageId = message && (message.messageId || message._id);
+    if (!Chat.mock.enabled && messageId) ws.send('message:ack', { messageId: String(messageId) });
+  });
   ws.on('message:status', (p) => Chat.messages.setStatus(p)); // SENT / DELIVERED / READ ticks
 
+  // TODO CA-38: unread badge for messages in other conversations.
   // TODO CA-39: user search results and "start chat" (REQ-31)
 
   // ---------- Help / About dialog (Esc closes natively) ----------

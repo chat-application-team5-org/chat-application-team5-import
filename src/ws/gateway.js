@@ -1,7 +1,11 @@
 const jwt = require('jsonwebtoken');
 const { WebSocketServer } = require('ws');
 const config = require('../config');
-const { sendMessage } = require('../modules/messaging/messageService');
+const {
+  sendMessage,
+  loadPendingMessagesForRecipient,
+  markMessageDelivered,
+} = require('../modules/messaging/messageService');
 
 const PING_INTERVAL_MS = 30000;
 const MAX_PAYLOAD_BYTES = 4096;
@@ -62,6 +66,23 @@ function attachGateway(server, {
     if (sockets.size === 0) online.delete(socket.userId);
   }
 
+  async function replayPendingMessages(socket, userId) {
+    try {
+      const pending = await loadPendingMessagesForRecipient({ recipientId: userId });
+      for (const message of pending) {
+        if (socket.readyState !== socket.OPEN) break;
+        send(socket, 'message:new', { message });
+      }
+    } catch {
+      if (socket.readyState === socket.OPEN) {
+        send(socket, 'error', {
+          code: 'INTERNAL_ERROR',
+          message: 'Pending messages could not be loaded. Open chat history to retry.',
+        });
+      }
+    }
+  }
+
   async function handleSend(socket, payload = {}) {
     const { conversationId, content, clientMsgId } = payload;
     try {
@@ -88,6 +109,32 @@ function attachGateway(server, {
         code: known ? err.code : 'INTERNAL_ERROR',
         message: known ? err.message : 'Message could not be saved, please try again',
         clientMsgId,
+      });
+    }
+  }
+
+  async function handleDeliveryAck(socket, payload = {}) {
+    try {
+      const { message, newlyDelivered } = await markMessageDelivered({
+        recipientId: socket.userId,
+        messageId: payload.messageId,
+      });
+      if (!newlyDelivered) return;
+
+      const senderId = String(message.sender);
+      const deliveryStatus = {
+        clientMsgId: message.clientMsgId,
+        messageId: String(message._id),
+        status: 'DELIVERED',
+      };
+      (online.get(senderId) || []).forEach((senderSocket) => {
+        send(senderSocket, 'message:status', deliveryStatus);
+      });
+    } catch (err) {
+      const known = Boolean(err.status && err.status < 500);
+      send(socket, 'error', {
+        code: known ? err.code : 'INTERNAL_ERROR',
+        message: known ? err.message : 'Message delivery could not be confirmed',
       });
     }
   }
@@ -140,7 +187,10 @@ function attachGateway(server, {
 
           register(socket, userId);
           clearTimeout(authTimeout);
-          return send(socket, 'auth:ok', { userId: socket.userId });
+          send(socket, 'auth:ok', { userId: socket.userId });
+          // Replay is asynchronous so auth:ok isn't held up by a history query.
+          void replayPendingMessages(socket, userId);
+          return;
         } catch {
           clearTimeout(authTimeout);
           if (socket.readyState === socket.OPEN) {
@@ -159,6 +209,7 @@ function attachGateway(server, {
       }
 
       if (msg && msg.type === 'message:send') return handleSend(socket, msg.payload);
+      if (msg && msg.type === 'message:ack') return handleDeliveryAck(socket, msg.payload);
 
       return send(socket, 'error', {
         code: 'VALIDATION_ERROR',
