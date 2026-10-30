@@ -4,6 +4,7 @@ Real-time chat application built with Node.js, Express, `ws` (WebSockets) and Mo
 PES University, Department of Computer Science and Engineering - Software Engineering mini project.
 
 Documents are in [`docs/`](docs): SRS, Software Architecture and Design Specification (SAD), Test Plan, sprint backlog snapshot, and demo guide.
+The consolidated final test summary and demo checklist is in [`docs/FINAL_PROJECT_TEST_SUMMARY_AND_DEMO.md`](docs/FINAL_PROJECT_TEST_SUMMARY_AND_DEMO.md).
 Sprint tasks and code changes are tracked in GitHub Issues, sprint planning records, and pull requests in this repository.
 
 ## Prerequisites
