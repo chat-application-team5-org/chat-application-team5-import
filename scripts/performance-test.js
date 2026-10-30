@@ -259,6 +259,7 @@ function assertOptions() {
 
 async function main() {
   assertOptions();
+  const processCpuStarted = process.cpuUsage();
   const prefix = 'p' + runId.slice(-7);
   const users = await provisionUsers(USERS, prefix);
   const conversations = [];
@@ -334,7 +335,16 @@ async function main() {
   const missingDeliveries = loadRecords.filter((record) => record.deliveries !== record.expectedDeliveries).length;
   const latencyUnderTarget = loadRecords.filter((record) => record.latencyMs !== null && record.latencyMs <= LATENCY_TARGET_MS).length;
   const latencyPercent = loadRecords.length ? Number((latencyUnderTarget * 100 / loadRecords.length).toFixed(2)) : 0;
-  const latencyP95 = percentile(loadRecords.filter((record) => record.latencyMs !== null).map((record) => record.latencyMs), 0.95);
+  const latencyValues = loadRecords.filter((record) => record.latencyMs !== null).map((record) => record.latencyMs);
+  const latencyP50 = percentile(latencyValues, 0.50);
+  const latencyP95 = percentile(latencyValues, 0.95);
+  const latencyP99 = percentile(latencyValues, 0.99);
+  const expectedRecipientDeliveries = loadRecords.reduce((total, record) => total + record.expectedDeliveries, 0);
+  const confirmedRecipientDeliveries = loadRecords.reduce((total, record) => total + Math.min(record.deliveries, record.expectedDeliveries), 0);
+  const missingRecipientDeliveries = Math.max(0, expectedRecipientDeliveries - confirmedRecipientDeliveries);
+  const processCpuUsed = process.cpuUsage(processCpuStarted);
+  const cpuDetails = os.cpus();
+  const cpuModels = [...new Set(cpuDetails.map((cpu) => cpu.model).filter(Boolean))];
   const registrationMax = maxValue(registrationTimes);
   const loginMax = maxValue(loginTimes);
   const historyP95 = percentile(historyTimes, 0.95);
@@ -347,6 +357,12 @@ async function main() {
       release: os.release(),
       nodeVersion: process.version,
       totalMemoryGiB: Number((os.totalmem() / (1024 ** 3)).toFixed(2)),
+      freeMemoryGiB: Number((os.freemem() / (1024 ** 3)).toFixed(2)),
+      logicalCpuCores: cpuDetails.length,
+      cpuModels,
+      loadAverage: os.loadavg().map((value) => Number(value.toFixed(2))),
+      processCpuUserMs: Number((processCpuUsed.user / 1000).toFixed(2)),
+      processCpuSystemMs: Number((processCpuUsed.system / 1000).toFixed(2)),
     },
     baseUrl: BASE_URL,
     durationSeconds: DURATION_SECONDS,
@@ -357,11 +373,16 @@ async function main() {
     login: { samples: loginTimes.length, maxMs: loginMax, p95Ms: percentile(loginTimes, 0.95) },
     messageDelivery: {
       loadMessagesSent: loadRecords.length,
+      expectedRecipientDeliveries,
+      confirmedRecipientDeliveries,
+      missingRecipientDeliveries,
       acknowledgementsMissingOrRejected: missingAcks,
       messagesMissingExpectedRecipientDelivery: missingDeliveries,
-      latencySamples: loadRecords.filter((record) => record.latencyMs !== null).length,
+      latencySamples: latencyValues.length,
       withinTargetPercent: latencyPercent,
+      p50Ms: latencyP50,
       p95Ms: latencyP95,
+      p99Ms: latencyP99,
       targetMs: LATENCY_TARGET_MS,
       unexpectedWebSocketCloses: unexpectedCloses,
       skippedSends: skippedSends,
