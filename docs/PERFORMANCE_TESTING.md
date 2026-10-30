@@ -45,18 +45,27 @@ GitHub Actions runs `npm run perf:smoke` after starting the server against its o
 
 The test creates uniquely named accounts and persists messages in the configured database. It does not delete them automatically. When finished, stop the app, confirm the database is disposable, and remove that test database if desired.
 
-## Manual PERF-5 browser check
+## Manual PERF-5 browser check — completed 2026-10-30
 
-1. Open the app in current Chrome and press **F12** to open DevTools.
-2. Select **Network** and disable cache while DevTools is open.
-3. Create/use a custom network throttling profile with a **4 Mbps download** rate; apply it and reload the page.
-4. Record the page-load timing from the Network panel. Repeat five times.
-5. Record all five results and whether the initial page was usable within 3 seconds. The Node.js benchmark does not claim PERF-5 passed.
+The initial chat application login page was opened in Chrome. DevTools Network was used with cache disabled and a custom throttle profile set to 4 Mbps download, 4 Mbps upload, and 0 ms added latency. Five reloads were recorded using the Network panel's **Finish** timing.
+
+| Reload | Network Finish |
+|---:|---:|
+| 1 | 212 ms |
+| 2 | 191 ms |
+| 3 | 185 ms |
+| 4 | 206 ms |
+| 5 | 182 ms |
+| Average | 195.2 ms |
+| Median | 191 ms |
+| Maximum | 212 ms |
+
+All five Finish timings were below the 3,000 ms target. This is a recorded page-load timing proxy for the configured browser test; it is not a separate automated interaction-readiness or field-user measurement.
 
 ## Results record
 
 | Date / environment | Run mode | Clients / duration | Latency target and p95 | Missing messages | Registration/login max | History p95 | PERF-5 at 4 Mbps | Overall |
 |---|---|---:|---|---:|---|---|---|---|
-| 2026-10-30; loopback on 15.61 GiB host | Full automated run | 100 / 600 seconds | 500 ms; p50 104.72 ms, p95 161.19 ms, p99 237.22 ms; 99.99% within 500 ms | 0 of 60,000 expected recipient deliveries missing; 0 missing acknowledgements | 189.30 ms / 85.28 ms | 72.77 ms | Not measured | **Partially verified** — 2 GB environment and PERF-5 remain pending |
+| 2026-10-30; loopback on 15.61 GiB host | Full automated run | 100 / 600 seconds | 500 ms; p50 104.72 ms, p95 161.19 ms, p99 237.22 ms; 99.99% within 500 ms | 0 of 60,000 expected recipient deliveries missing; 0 missing acknowledgements | 189.30 ms / 85.28 ms | 72.77 ms | Chrome Finish: 212 / 191 / 185 / 206 / 182 ms at 4 Mbps | **Partially verified** — 2 GB environment and separate LAN/broadband latency remain pending |
 
-The 2026-10-30 automated run is recorded in `docs/PERFORMANCE_TEST_RESULTS.md`. It was performed on a 15.61 GiB host using loopback, so it does not establish the SRS 2 GB environment requirement or separate LAN/broadband latency. CA-45 must remain open until PERF-5 is measured in Chrome at 4 Mbps and the 100-client run is repeated in the specified 2 GB environment.
+The 2026-10-30 automated run is recorded in `docs/PERFORMANCE_TEST_RESULTS.md`. It was performed on a 15.61 GiB host using loopback, so it does not establish the SRS 2 GB environment requirement or separate LAN/broadband latency. CA-45 must remain open until the 100-client run is repeated in the specified 2 GB environment and message latency is checked over a separate LAN/broadband path.
