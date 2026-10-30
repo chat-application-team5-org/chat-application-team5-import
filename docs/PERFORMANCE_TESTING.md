@@ -57,6 +57,6 @@ The test creates uniquely named accounts and persists messages in the configured
 
 | Date / environment | Run mode | Clients / duration | Latency target and p95 | Missing messages | Registration/login max | History p95 | PERF-5 at 4 Mbps | Overall |
 |---|---|---:|---|---:|---|---|---|---|
-| Pending full run | GitHub Actions smoke only; full SRS run not yet recorded | 100 / 15 seconds in CI smoke | Use CI log report; not a 10-minute target run | Use CI log report | Use CI log report | Use CI log report | Not measured by CI smoke | **Not yet complete** |
+| 2026-10-30; loopback on 15.61 GiB host | Full automated run | 100 / 600 seconds | 500 ms; p50 104.72 ms, p95 161.19 ms, p99 237.22 ms; 99.99% within 500 ms | 0 of 60,000 expected recipient deliveries missing; 0 missing acknowledgements | 189.30 ms / 85.28 ms | 72.77 ms | Not measured | **Partially verified** — 2 GB environment and PERF-5 remain pending |
 
-CA-45 should remain open until the full performance run and the manual PERF-5 check have been recorded and reviewed.
+The 2026-10-30 automated run is recorded in `docs/PERFORMANCE_TEST_RESULTS.md`. It was performed on a 15.61 GiB host using loopback, so it does not establish the SRS 2 GB environment requirement or separate LAN/broadband latency. CA-45 must remain open until PERF-5 is measured in Chrome at 4 Mbps and the 100-client run is repeated in the specified 2 GB environment.
