@@ -3,7 +3,7 @@
 **Date:** 2026-10-30  
 **Status:** Partially verified — PERF-5 measurements recorded; PERF-1 network-path validation and PERF-2 2 GB validation remain open  
 **Issue:** [#40 — Performance and load tests](https://github.com/chat-application-team5-org/chat-application-team5-import/issues/40)  
-**Branch:** `test/CA-45-full-performance-validation-recovery`
+**Branch:** `test/CA-45-perf5-chrome-results`
 
 ## 1. Automated 10-minute run
 
