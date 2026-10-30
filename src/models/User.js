@@ -22,6 +22,7 @@ const userSchema = new mongoose.Schema(
     },
     failedLoginAttempts: { type: Number, default: 0, min: 0 },
     lockUntil: { type: Date, default: null },
+    lastSeen: { type: Date, default: null },
   },
   {
     timestamps: true,

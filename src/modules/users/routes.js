@@ -2,6 +2,10 @@ const express = require('express');
 const User = require('../../models/User');
 const { currentUser } = require('../../middleware/currentUser');
 const { AppError } = require('../../middleware/errorHandler');
+const {
+  isOnline,
+  getLastSeen,
+} = require('../presence/presenceService');
 
 const router = express.Router();
 const MAX_RESULTS = 10;
@@ -23,15 +27,22 @@ router.get('/search', currentUser, async (req, res, next) => {
       _id: { $ne: req.userId },
       username: { $regex: escapeRegex(query), $options: 'i' },
     })
-      .select('_id username')
+      .select('_id username lastSeen')
       .sort({ username: 1 })
       .limit(MAX_RESULTS);
 
-    return res.status(200).json(users.map((user) => ({
-      userId: String(user._id),
-      username: user.username,
-      displayName: user.username,
-    })));
+   return res.status(200).json(users.map((user) => {
+  const userId = String(user._id);
+  const lastSeen = user.lastSeen || getLastSeen(userId);
+
+  return {
+    userId,
+    username: user.username,
+    displayName: user.username,
+    status: isOnline(userId) ? 'online' : 'offline',
+    lastSeen: lastSeen ? lastSeen.toISOString() : null,
+  };
+}));
   } catch (error) {
     return next(error);
   }
