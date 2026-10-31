@@ -1,9 +1,9 @@
 # CA-45 Performance and Load Test Results
 
 **Date:** 2026-10-30  
-**Status:** Partially verified — do not close CA-45 yet  
+**Status:** Partially verified — PERF-5 measurements recorded; PERF-1 network-path validation and PERF-2 2 GB validation remain open  
 **Issue:** [#40 — Performance and load tests](https://github.com/chat-application-team5-org/chat-application-team5-import/issues/40)  
-**Branch:** `test/CA-45-full-performance-validation-recovery`
+**Branch:** `test/CA-45-perf5-chrome-results`
 
 ## 1. Automated 10-minute run
 
@@ -60,21 +60,32 @@ CPU and host details should be captured by the enhanced benchmark output on the 
 | PERF-2 — 100 concurrent clients | Partially verified | Repeat on the SRS-specified 2 GB environment |
 | PERF-3 — registration/login | PASS in this run | Retain recorded maxima |
 | PERF-4 — latest 50 messages | PASS in this run | Retain recorded p95 |
-| PERF-5 — initial page usable within 3 seconds at 4 Mbps | NOT MEASURED | Use Chrome DevTools with cache disabled and 4 Mbps download throttling; perform five reloads and record all five timings |
+| PERF-5 — initial page usable within 3 seconds at 4 Mbps | PASS for five recorded Network Finish readings | Five Chrome reloads with cache disabled and a custom 4 Mbps download / 4 Mbps upload profile: 212, 191, 185, 206, 182 ms (all below 3,000 ms) |
 
-## 6. PERF-5 manual procedure
+## 6. PERF-5 manual Chrome results
 
-1. Open the application in Chrome and press F12.
-2. Select **Network** and enable **Disable cache**.
-3. Configure a custom throttling profile with **4 Mbps download**.
-4. Reload the page five times.
-5. Record the time until the initial page is usable for each reload.
-6. Report all five measurements and whether each is within 3 seconds.
+**Date:** 2026-10-30  
+**Browser:** Google Chrome DevTools Network panel  
+**Network profile:** Custom 4 Mbps download / 4 Mbps upload; 0 ms added latency  
+**Cache:** Disabled  
+**Page tested:** Initial chat application login page  
+**Recorded metric:** Network panel `Finish` time for each reload
 
-Do not mark PERF-5 as passed until those five real browser measurements are recorded.
+| Reload | Network Finish |
+|---:|---:|
+| 1 | 212 ms |
+| 2 | 191 ms |
+| 3 | 185 ms |
+| 4 | 206 ms |
+| 5 | 182 ms |
+| **Average** | **195.2 ms** |
+| **Median** | **191 ms** |
+| **Maximum** | **212 ms** |
+
+All five recorded Network Finish times were below the 3,000 ms target. This is evidence for the initial page-load check under the configured Chrome throttle. The recorded measure is the Network panel's Finish timing; it is not a separate automated interaction-readiness or field-user measurement.
 
 ## 7. Conclusion
 
 The automated 600-second run completed with 100 WebSocket clients and 60,000 of 60,000 expected recipient deliveries. Registration, login, and latest-50 history timings met their numerical targets in this run. Unit tests, integration tests, lint, and diff checks passed.
 
-**CA-45 remains open.** PERF-5 has not been manually measured, PERF-2 has not been repeated on the required 2 GB environment, and loopback latency does not prove LAN/broadband performance. Review the remaining checks before closing the issue.
+**CA-45 remains open.** PERF-5 has five recorded Chrome Network Finish measurements below the 3-second target. PERF-2 has not been repeated on the required 2 GB environment, and the automated loopback latency does not prove performance over a separate LAN/broadband path. Complete those remaining checks and obtain review before closing the issue.
