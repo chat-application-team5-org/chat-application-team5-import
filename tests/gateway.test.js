@@ -9,6 +9,10 @@ jest.mock('../src/modules/messaging/messageService', () => ({
 jest.mock('../src/models/User', () => ({
   findByIdAndUpdate: jest.fn().mockResolvedValue({}),
 }));
+
+jest.mock('../src/models/Conversation', () => ({
+  findById: jest.fn(),
+}));
 const {
   sendMessage,
   loadPendingMessagesForRecipient,
@@ -16,6 +20,7 @@ const {
 } = require('../src/modules/messaging/messageService');
 const { attachGateway } = require('../src/ws/gateway');
 const User = require('../src/models/User');
+const Conversation = require('../src/models/Conversation');
 
 let server;
 let wss;
@@ -53,6 +58,7 @@ beforeEach(() => {
   loadPendingMessagesForRecipient.mockReset().mockResolvedValue([]);
   markMessageDelivered.mockReset();
   User.findByIdAndUpdate.mockReset().mockResolvedValue({});
+  Conversation.findById.mockReset();
 });
 
 function connect({ origin = ALLOWED_ORIGIN } = {}) {
@@ -341,5 +347,91 @@ expect(presence).toBeDefined();
       alice.close();
       bob.close();
     }
+  });
+});
+
+describe('Typing indicator (CA-34)', () => {
+  test('sends typing updates only to other conversation members', async () => {
+    const alice = await login('alice');
+    const bob = await login('bob');
+    const charlie = await login('charlie');
+
+    const conversationId = '507f1f77bcf86cd799439011';
+
+    Conversation.findById.mockResolvedValue({
+      participants: ['alice', 'bob'],
+    });
+
+    try {
+      alice.send(JSON.stringify({
+        type: 'typing:start',
+        payload: { conversationId },
+      }));
+
+      const typing = await waitFor(bob, 'typing:update');
+
+      expect(typing.payload).toEqual({
+        conversationId,
+        userId: 'alice',
+        status: 'typing',
+      });
+
+      expect(alice.inbox.some(
+        (message) => message.type === 'typing:update'
+      )).toBe(false);
+
+      expect(charlie.inbox.some(
+        (message) => message.type === 'typing:update'
+      )).toBe(false);
+    } finally {
+      alice.close();
+      bob.close();
+      charlie.close();
+    }
+  });
+  test('rejects typing events from users who are not conversation members', async () => {
+    const alice = await login('alice');
+    const charlie = await login('charlie');
+
+    const conversationId = '507f1f77bcf86cd799439011';
+
+    Conversation.findById.mockResolvedValue({
+      participants: ['bob', 'charlie'],
+  });
+
+  try {
+    alice.send(JSON.stringify({
+      type: 'typing:start',
+      payload: { conversationId },
+    }));
+
+    const error = await waitFor(alice, 'error');
+
+    expect(error.payload.code).toBe('FORBIDDEN_NOT_MEMBER');
+
+    expect(charlie.inbox.some(
+      (message) => message.type === 'typing:update'
+    )).toBe(false);
+  } finally {
+    alice.close();
+    charlie.close();
+  }
+  });
+  test('rejects typing events with an invalid conversation ID', async () => {
+   const alice = await login('alice');
+
+   try {
+    alice.send(JSON.stringify({
+      type: 'typing:start',
+      payload: { conversationId: 'invalid-id' },
+    }));
+
+    const error = await waitFor(alice, 'error');
+
+    expect(error.payload.code).toBe('VALIDATION_ERROR');
+    expect(Conversation.findById).not.toHaveBeenCalled();
+  } finally {
+    alice.close();
+  }
   });
 });

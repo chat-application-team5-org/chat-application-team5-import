@@ -139,6 +139,9 @@
   }
 
   let currentConversation = null;
+  let lastTypingSentAt = 0;
+  let remoteTypingTimeout = null;
+  let remoteTypingConversationId = null;
   let historyState = {
     conversationId: null,
     hasMore: false,
@@ -148,6 +151,12 @@
   Chat.names = {}; // userId -> display name (the API returns ids only)
 
   async function openConversation(c) {
+    if (remoteTypingTimeout) {
+      clearTimeout(remoteTypingTimeout);
+      remoteTypingTimeout = null;
+    }
+
+    $('typing-indicator').textContent = '';
     currentConversation = c;
     historyState = {
       conversationId: c.conversationId,
@@ -214,9 +223,29 @@
       $('message-form').requestSubmit();
     }
   });
+  $('message-input').addEventListener('input', () => {
+  if (!currentConversation || !api.session.token || Chat.mock.enabled) return;
+
+  const now = Date.now();
+
+  // Send typing updates at most once per second.
+  if (now - lastTypingSentAt < 1000) return;
+
+  lastTypingSentAt = now;
+
+  ws.send('typing:start', {
+    conversationId: currentConversation.conversationId,
+  });
+});
 
   $('message-form').addEventListener('submit', (e) => {
     e.preventDefault();
+      if (remoteTypingTimeout) {
+       clearTimeout(remoteTypingTimeout);
+       remoteTypingTimeout = null;
+      }
+
+      $('typing-indicator').textContent = '';
     const input = $('message-input');
     const content = input.value;
     if (!content.trim()) return ui.toast('error', 'Message cannot be empty');
@@ -247,6 +276,30 @@
     if (!Chat.mock.enabled && messageId) ws.send('message:ack', { messageId: String(messageId) });
   });
   ws.on('message:status', (p) => Chat.messages.setStatus(p)); // SENT / DELIVERED / READ ticks
+  ws.on('message:status', (p) => Chat.messages.setStatus(p)); // SENT / DELIVERED / READ ticks
+
+// CA-34: Typing indicator
+ws.on('typing:update', (p) => {
+  if (!p || !currentConversation) return;
+
+  if (p.conversationId !== currentConversation.conversationId) return;
+
+  const indicator = $('typing-indicator');
+  const username = Chat.names[p.userId] || 'Someone';
+
+  indicator.textContent = `${username} is typing...`;
+
+  if (remoteTypingTimeout) {
+    clearTimeout(remoteTypingTimeout);
+  }
+
+  remoteTypingTimeout = setTimeout(() => {
+    indicator.textContent = '';
+    remoteTypingTimeout = null;
+  }, 3000);
+});
+
+const presenceUsers = new Map();
     const presenceUsers = new Map();
 
   function renderPresence() {
