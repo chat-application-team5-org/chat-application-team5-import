@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { WebSocketServer } = require('ws');
+const mongoose = require('mongoose');
+const Conversation = require('../models/Conversation');
 const config = require('../config');
 const User = require('../models/User');
 const {
@@ -272,6 +274,59 @@ function broadcastPresence(userId, status, lastSeen = null) {
 
       if (msg && msg.type === 'message:send') return handleSend(socket, msg.payload);
       if (msg && msg.type === 'message:ack') return handleDeliveryAck(socket, msg.payload);
+      if (msg && msg.type === 'typing:start') {
+        const { conversationId } = msg.payload || {};
+
+        if (!mongoose.isValidObjectId(conversationId)) {
+         return send(socket, 'error', {
+           code: 'VALIDATION_ERROR',
+           message: 'A valid conversationId is required.',
+         });
+        }
+
+  try {
+    const conversation = await Conversation.findById(conversationId) ;
+
+    if (!conversation) {
+      return send(socket, 'error', {
+        code: 'NOT_FOUND',
+        message: 'Conversation not found.',
+      });
+    }
+
+    const isMember = conversation.participants.some(
+      (id) => String(id) === String(socket.userId)
+    );
+
+    if (!isMember) {
+      return send(socket, 'error', {
+        code: 'FORBIDDEN_NOT_MEMBER',
+        message: 'You are not part of this conversation.',
+      });
+    }
+
+    conversation.participants.forEach((participantId) => {
+      const recipientId = String(participantId);
+
+      if (recipientId === String(socket.userId)) return;
+
+      (online.get(recipientId) || []).forEach((recipientSocket) => {
+        send(recipientSocket, 'typing:update', {
+          conversationId: String(conversationId),
+          userId: String(socket.userId),
+          status: 'typing',
+        });
+      });
+    });
+  } catch {
+    return send(socket, 'error', {
+      code: 'INTERNAL_ERROR',
+      message: 'Typing status could not be sent.',
+    });
+  }
+
+  return;
+}
 
       return send(socket, 'error', {
         code: 'VALIDATION_ERROR',
