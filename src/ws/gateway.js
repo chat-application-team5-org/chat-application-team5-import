@@ -343,26 +343,30 @@ function broadcastPresence(userId, status, lastSeen = null) {
   });
 const heartbeat = setInterval(() => {
   wss.clients.forEach((socket) => {
-    if (!socket.userId) return;
+    if (!socket.userId || socket.pongTimeout) return;
 
     socket.isAlive = false;
-
     socket.ping();
 
     socket.pongTimeout = setTimeout(() => {
+      socket.pongTimeout = null;
+
       if (!socket.isAlive) {
         socket.terminate();
       }
     }, pongTimeoutMs);
   });
 }, pingIntervalMs);
+
 wss.on('close', () => {
   clearInterval(heartbeat);
 
   wss.clients.forEach((socket) => {
     clearTimeout(socket.pongTimeout);
+    socket.pongTimeout = null;
   });
 });
+
 
   return wss;
 }

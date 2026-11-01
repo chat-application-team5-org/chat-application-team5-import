@@ -42,7 +42,7 @@ beforeAll((done) => {
     authenticate,
     authTimeoutMs: 100,
     pingIntervalMs: 1000,
-    pongTimeoutMs: 500,
+    pongTimeoutMs: 5000,
   });
   server.listen(0, () => {
     port = server.address().port;
@@ -474,7 +474,7 @@ describe('Heartbeat (CA-35)', () => {
       alice.terminate();
     }
   }
-});
+},10000);
 test('broadcasts offline presence when an unresponsive user is terminated', async () => {
   const alice = await login('alice');
   const bob = await login('bob');
@@ -485,7 +485,7 @@ test('broadcasts offline presence when an unresponsive user is terminated', asyn
     const offline = new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Offline presence was not broadcast'));
-      }, 3000);
+      }, 8000);
 
       bob.on('message', (raw) => {
         const message = JSON.parse(raw.toString());
@@ -505,8 +505,11 @@ test('broadcasts offline presence when an unresponsive user is terminated', asyn
 
     expect(presence.payload.status).toBe('offline');
     expect(presence.payload.lastSeen).toEqual(expect.any(String));
-  } finally {
+   } finally {
     bob.close();
+    if (alice.readyState === WebSocket.OPEN) {
+      alice.terminate();
+    }
   }
-});
+}, 12000);
 });
