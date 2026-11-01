@@ -15,6 +15,7 @@ const {
 } = require('../modules/presence/presenceService');
 
 const PING_INTERVAL_MS = 30000;
+const PONG_TIMEOUT_MS = 10000;
 const MAX_PAYLOAD_BYTES = 4096;
 const AUTH_TIMEOUT_MS = 5000;
 
@@ -39,6 +40,8 @@ function attachGateway(server, {
   allowedOrigin,
   authenticate = defaultAuthenticate,
   authTimeoutMs = AUTH_TIMEOUT_MS,
+  pingIntervalMs = PING_INTERVAL_MS,
+  pongTimeoutMs = PONG_TIMEOUT_MS,
 }) {
   // Browsers must send the configured Origin. Do not allow a missing Origin
   // to bypass the origin allow-list.
@@ -212,13 +215,17 @@ function broadcastPresence(userId, status, lastSeen = null) {
       socket.close(4401, 'AUTH_TIMEOUT');
     }, authTimeoutMs);
 
-    socket.on('pong', () => {
-      socket.isAlive = true;
-    });
-    socket.on('close', () => {
-      clearTimeout(authTimeout);
-      unregister(socket);
-    });
+   socket.on('pong', () => {
+  socket.isAlive = true;
+  clearTimeout(socket.pongTimeout);
+  socket.pongTimeout = null;
+});
+   socket.on('close', () => {
+  clearTimeout(authTimeout);
+  clearTimeout(socket.pongTimeout);
+  socket.pongTimeout = null;
+  unregister(socket);
+});
 
     socket.on('message', async (raw) => {
       let msg;
@@ -334,15 +341,28 @@ function broadcastPresence(userId, status, lastSeen = null) {
       });
     });
   });
+const heartbeat = setInterval(() => {
+  wss.clients.forEach((socket) => {
+    if (!socket.userId) return;
 
-  const heartbeat = setInterval(() => {
-    wss.clients.forEach((socket) => {
-      if (!socket.isAlive) return socket.terminate();
-      socket.isAlive = false;
-      socket.ping();
-    });
-  }, PING_INTERVAL_MS);
-  wss.on('close', () => clearInterval(heartbeat));
+    socket.isAlive = false;
+
+    socket.ping();
+
+    socket.pongTimeout = setTimeout(() => {
+      if (!socket.isAlive) {
+        socket.terminate();
+      }
+    }, pongTimeoutMs);
+  });
+}, pingIntervalMs);
+wss.on('close', () => {
+  clearInterval(heartbeat);
+
+  wss.clients.forEach((socket) => {
+    clearTimeout(socket.pongTimeout);
+  });
+});
 
   return wss;
 }
