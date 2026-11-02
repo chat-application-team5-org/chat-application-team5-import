@@ -41,6 +41,8 @@ beforeAll((done) => {
     allowedOrigin: ALLOWED_ORIGIN,
     authenticate,
     authTimeoutMs: 100,
+    pingIntervalMs: 1000,
+    pongTimeoutMs: 5000,
   });
   server.listen(0, () => {
     port = server.address().port;
@@ -434,4 +436,80 @@ describe('Typing indicator (CA-34)', () => {
     alice.close();
   }
   });
+});
+describe('Heartbeat (CA-35)', () => {
+  test('sends periodic ping frames and keeps responsive clients connected', async () => {
+    const alice = await login('alice');
+
+    try {
+      const pingReceived = new Promise((resolve) => {
+        alice.once('ping', resolve);
+      });
+
+      await pingReceived;
+
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      expect(alice.readyState).toBe(WebSocket.OPEN);
+    } finally {
+      alice.close();
+    }
+  });
+  test('terminates clients that do not respond with pong', async () => {
+  const alice = await login('alice');
+  alice._autoPong = false;
+
+  try {
+    alice.removeAllListeners('ping');
+
+    alice.on('ping', () => {
+      // Intentionally do not send pong.
+    });
+
+    const closeCode = await alice.closed;
+
+    expect(closeCode).toBe(1006);
+  } finally {
+    if (alice.readyState === WebSocket.OPEN) {
+      alice.terminate();
+    }
+  }
+},10000);
+test('broadcasts offline presence when an unresponsive user is terminated', async () => {
+  const alice = await login('alice');
+  const bob = await login('bob');
+
+  try {
+    alice._autoPong = false;
+
+    const offline = new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Offline presence was not broadcast'));
+      }, 8000);
+
+      bob.on('message', (raw) => {
+        const message = JSON.parse(raw.toString());
+
+        if (
+          message.type === 'presence:update' &&
+          message.payload.userId === 'alice' &&
+          message.payload.status === 'offline'
+        ) {
+          clearTimeout(timeout);
+          resolve(message);
+        }
+      });
+    });
+
+    const presence = await offline;
+
+    expect(presence.payload.status).toBe('offline');
+    expect(presence.payload.lastSeen).toEqual(expect.any(String));
+   } finally {
+    bob.close();
+    if (alice.readyState === WebSocket.OPEN) {
+      alice.terminate();
+    }
+  }
+}, 12000);
 });
