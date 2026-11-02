@@ -572,7 +572,118 @@
   });
 
   // TODO CA-38: unread badge for messages in other conversations.
-  // TODO CA-39: user search results and "start chat" (REQ-31)
+  
+  // CA-39: Search users and start private conversations.
+  const searchInput = $('search-input');
+  let searchTimeout = null;
+  let searchRequestId = 0;
+
+  function renderSearchResults(users) {
+    const list = $('conversation-list');
+    list.replaceChildren();
+
+    if (!users.length) {
+      list.appendChild(emptyItem('No users found'));
+      return;
+    }
+
+    users.forEach((user) => {
+      const li = document.createElement('li');
+      li.className = 'conv';
+      li.tabIndex = 0;
+
+      const details = document.createElement('div');
+
+      const name = document.createElement('div');
+      name.className = 'conv-name';
+      name.textContent = user.displayName || user.username;
+
+      const username = document.createElement('div');
+      username.className = 'conv-last';
+      username.textContent = '@' + user.username;
+
+      details.append(name, username);
+      li.appendChild(details);
+
+      const startChat = async () => {
+        if (li.dataset.loading === 'true') return;
+
+        li.dataset.loading = 'true';
+        username.textContent = 'Starting conversation...';
+
+        try {
+          const result = await api.createPrivateConversation(user.userId);
+
+          if (!result || !result.conversation) {
+            throw new Error('Could not start conversation.');
+          }
+
+          searchInput.value = '';
+          searchRequestId++;
+
+          if (searchTimeout) {
+            clearTimeout(searchTimeout);
+          }
+
+          await loadConversations();
+          await openConversation(result.conversation);
+        } catch (err) {
+          li.dataset.loading = 'false';
+          username.textContent = '@' + user.username;
+          ui.toast(
+            'error',
+            err.message || 'Could not start conversation.'
+          );
+        }
+      };
+
+      li.onclick = startChat;
+
+      li.onkeydown = (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          startChat();
+        }
+      };
+
+      list.appendChild(li);
+    });
+  }
+
+  searchInput.addEventListener('input', () => {
+    const query = searchInput.value.trim();
+    const requestId = ++searchRequestId;
+
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    if (!query) {
+      loadConversations();
+      return;
+    }
+
+    searchTimeout = setTimeout(async () => {
+      const list = $('conversation-list');
+      list.replaceChildren();
+      list.appendChild(emptyItem('Searching...'));
+
+      try {
+        const users = await api.searchUsers(query);
+
+        if (requestId !== searchRequestId) return;
+
+        renderSearchResults(users || []);
+      } catch (err) {
+        if (requestId !== searchRequestId) return;
+
+        list.replaceChildren();
+        list.appendChild(emptyItem('Search failed. Try again.'));
+        ui.toast('error', err.message || 'User search failed.');
+      }
+    }, 250);
+  });
+
 
   // ---------- Help / About dialog ----------
   $('about-btn').onclick = () => {

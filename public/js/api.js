@@ -47,7 +47,12 @@ window.Chat = window.Chat || {};
 
   // The backend returns Mongoose documents ({ _id, conversation, sender, createdAt, ... }).
   // The UI works with flat objects, so everything is converted here, in one place.
-  const idOf = (v) => (v && typeof v === 'object' && v._id ? String(v._id) : v == null ? v : String(v));
+  const idOf = (v) =>
+  v && typeof v === 'object' && v._id
+    ? String(v._id)
+    : v === null || v === undefined
+      ? v
+      : String(v);
 
   function normalizeMessage(m) {
     return {
@@ -80,6 +85,13 @@ window.Chat = window.Chat || {};
     login: (identifier, password) => request('POST', '/api/auth/login', { identifier, password }),
     logout: () => request('POST', '/api/auth/logout').catch(() => null),
     searchUsers: (q) => request('GET', '/api/users/search?q=' + encodeURIComponent(q)),
+    createPrivateConversation: async (participantId) => {
+      const res = await request('POST', '/api/conversations', { participantId });
+      return {
+        conversation: normalizeConversation(res.conversation),
+        messages: ((res && res.messages) || []).map(normalizeMessage),
+      };
+},
     // accepts either an array or { conversations: [...] }
     listConversations: async () => {
       const res = await request('GET', '/api/conversations');
