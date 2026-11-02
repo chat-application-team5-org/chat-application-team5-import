@@ -157,5 +157,23 @@ window.Chat = window.Chat || {};
     if (m) { m.status = 'FAILED'; render(); }
   }
 
-  Chat.messages = { open, prepend, add, setStatus, markFailed };
+    // Return the ID of the latest message for reconnect synchronization.
+  function lastMessageId() {
+    for (let i = items.length - 1; i >= 0; i -= 1) {
+      if (items[i].messageId) {
+        return items[i].messageId;
+      }
+    }
+
+    return null;
+  }
+
+  Chat.messages = {
+    open,
+    prepend,
+    add,
+    setStatus,
+    markFailed,
+    lastMessageId
+  };
 })(window.Chat);
