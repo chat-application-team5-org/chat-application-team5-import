@@ -299,7 +299,7 @@ expect(presence).toBeDefined();
 
       bob1.close();
 
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await bob1.closed;
 
       const prematureOffline = alice.inbox.some(
         (message) =>
