@@ -571,6 +571,17 @@
     renderPresence();
   });
 
+    // CA-29: Refresh conversations when a user is added to a group.
+  ws.on('group:update', async (payload) => {
+    if (!payload || payload.action !== 'ADDED') return;
+
+    try {
+      await loadConversations();
+    } catch (error) {
+      console.error('Failed to refresh group conversations:', error);
+    }
+  });
+
   // TODO CA-38: unread badge for messages in other conversations.
   
   // CA-39: Search users and start private conversations.

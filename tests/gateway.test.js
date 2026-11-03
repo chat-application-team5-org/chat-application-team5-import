@@ -19,6 +19,7 @@ const {
   markMessageDelivered,
 } = require('../src/modules/messaging/messageService');
 const { attachGateway } = require('../src/ws/gateway');
+const { publishGroupUpdate } = require('../src/modules/group/groupEvents');
 const User = require('../src/models/User');
 const Conversation = require('../src/models/Conversation');
 
@@ -512,4 +513,41 @@ test('broadcasts offline presence when an unresponsive user is terminated', asyn
     }
   }
 }, 12000);
+});
+
+describe('Group updates (CA-29)', () => {
+  it('delivers group:update only to intended online participants', async () => {
+    const alice = await login('alice');
+    const bob = await login('bob');
+    const charlie = await login('charlie');
+
+    const payload = {
+      action: 'ADDED',
+      conversation: {
+        conversationId: 'group-1',
+        type: 'GROUP',
+        name: 'Project Team',
+        participants: ['alice', 'bob'],
+      },
+    };
+
+    try {
+      publishGroupUpdate('alice', payload);
+      publishGroupUpdate('bob', payload);
+
+      const aliceEvent = await waitFor(alice, 'group:update');
+      const bobEvent = await waitFor(bob, 'group:update');
+
+      expect(aliceEvent.payload).toEqual(payload);
+      expect(bobEvent.payload).toEqual(payload);
+
+      expect(
+        charlie.inbox.some((message) => message.type === 'group:update')
+      ).toBe(false);
+    } finally {
+      alice.close();
+      bob.close();
+      charlie.close();
+    }
+  });
 });
