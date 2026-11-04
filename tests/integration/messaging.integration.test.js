@@ -126,7 +126,7 @@ afterAll(async () => {
 
 test('offline messages replay after reconnect, are acknowledged once, and survive restart', async () => {
   const registrationA = await requestJson('/api/auth/register', {
-    method: 'POST', body: { username: 'Alice', email: 'alice@example.com', password: 'Secret123' },
+    method: 'POST', body: { username: 'alice', email: 'alice@example.com', password: 'Secret123' },
   });
   const registrationB = await requestJson('/api/auth/register', {
     method: 'POST', body: { username: 'Bob', email: 'bob@example.com', password: 'Secret123' },
@@ -295,4 +295,113 @@ test('offline messages replay after reconnect, are acknowledged once, and surviv
     { token: loginB.data.token }
   );
   expect(conflictingCursors.response.status).toBe(400);
+
+  // CA-30: Group delivery is tracked independently for each recipient.
+  // The preceding history test restarted the server, so reconnect both online users.
+  const aliceGroupSocket = await connectSocket(loginA.data.token);
+  const bobGroupSocket = await connectSocket(loginB.data.token);
+  const groupCreated = await requestJson('/api/groups', {
+    method: 'POST',
+    token: loginA.data.token,
+    body: {
+      name: 'CA-30 Delivery Test',
+      memberIds: [registrationB.data.userId, registrationC.data.userId],
+    },
+  });
+
+  expect(groupCreated.response.status).toBe(201);
+  const groupConversationId = groupCreated.data.conversation.conversationId;
+
+  // Charlie stays offline. Alice sends a group message while Bob is online.
+  const groupSentEvent = nextEvent(
+    aliceGroupSocket,
+    'message:status',
+    (p) => p.clientMsgId === 'group-offline-1'
+  );
+  const bobGroupIncoming = nextEvent(
+    bobGroupSocket,
+    'message:new',
+    (p) => p.message && p.message.clientMsgId === 'group-offline-1'
+  );
+
+  aliceGroupSocket.send(JSON.stringify({
+    type: 'message:send',
+    payload: {
+      conversationId: groupConversationId,
+      content: 'Hello group',
+      clientMsgId: 'group-offline-1',
+    },
+  }));
+
+  const groupSentStatus = await groupSentEvent;
+  expect(groupSentStatus.status).toBe('SENT');
+
+  const bobGroupMessage = await bobGroupIncoming;
+  expect(bobGroupMessage.message).toMatchObject({
+    content: 'Hello group',
+    sender: { username: 'alice' },
+  });
+
+  // Bob acknowledges, but Charlie has not received the message yet.
+  bobGroupSocket.send(JSON.stringify({
+    type: 'message:ack',
+    payload: { messageId: groupSentStatus.messageId },
+  }));
+
+  let partiallyDelivered;
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    partiallyDelivered = await Message.findById(groupSentStatus.messageId);
+    if ((partiallyDelivered.deliveredTo || []).some(
+      (id) => String(id) === String(registrationB.data.userId)
+    )) break;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+
+  expect(partiallyDelivered.status).toBe('SENT');
+  expect(partiallyDelivered.deliveredTo.map(String)).toContain(
+    String(registrationB.data.userId)
+  );
+  expect(partiallyDelivered.deliveredTo.map(String)).not.toContain(
+    String(registrationC.data.userId)
+  );
+
+  // Charlie reconnects and receives the message that is still pending for him.
+  const charlieGroupSocket = await connectSocket(loginC.data.token);
+  const charlieReplay = await nextEvent(
+    charlieGroupSocket,
+    'message:new',
+    (p) => p.message && p.message.clientMsgId === 'group-offline-1'
+  );
+
+  expect(charlieReplay.message).toMatchObject({
+    content: 'Hello group',
+    sender: { username: 'alice' },
+  });
+
+  const groupDeliveredEvent = nextEvent(
+    aliceGroupSocket,
+    'message:status',
+    (p) => p.clientMsgId === 'group-offline-1' && p.status === 'DELIVERED'
+  );
+
+  charlieGroupSocket.send(JSON.stringify({
+    type: 'message:ack',
+    payload: { messageId: groupSentStatus.messageId },
+  }));
+
+  await groupDeliveredEvent;
+
+  const fullyDelivered = await Message.findById(groupSentStatus.messageId);
+  expect(fullyDelivered.status).toBe('DELIVERED');
+  expect(fullyDelivered.deliveredTo.map(String)).toEqual(
+    expect.arrayContaining([
+      String(registrationB.data.userId),
+      String(registrationC.data.userId),
+    ])
+  );
+
+  charlieGroupSocket.close();
+  aliceGroupSocket.close();
+  bobGroupSocket.close();
+
 });

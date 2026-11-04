@@ -1,13 +1,14 @@
 const mongoose = require('mongoose');
+
 const Conversation = require('../../models/Conversation');
 const Message = require('../../models/Message');
 const { AppError } = require('../../middleware/errorHandler');
 const { validateMessageContent } = require('./validation');
 
-// CA-27: validate, check membership, SAVE, and only then return.
-// The caller sends the acknowledgement after this promise resolves.
+// CA-27 / CA-30: persist first, then let the gateway acknowledge and broadcast.
 async function sendMessage({ senderId, conversationId, content, clientMsgId }) {
   validateMessageContent(content);
+
   if (!mongoose.isValidObjectId(conversationId)) {
     throw new AppError(400, 'VALIDATION_ERROR', 'A valid conversationId is required.');
   }
@@ -18,24 +19,25 @@ async function sendMessage({ senderId, conversationId, content, clientMsgId }) {
   const isMember = conversation.participants.some((id) => String(id) === String(senderId));
   if (!isMember) throw new AppError(403, 'FORBIDDEN_NOT_MEMBER', 'You are not part of this conversation.');
 
+  const recipientIds = conversation.participants
+    .map(String)
+    .filter((id) => id !== String(senderId));
+
   const message = await Message.create({
     conversation: conversation._id,
     sender: senderId,
     content,
     clientMsgId,
+    recipientIds,
+    deliveredTo: [],
   });
+
   await message.populate('sender', 'username');
-
-  const recipientIds = conversation.participants
-    .map(String)
-    .filter((id) => id !== String(senderId));
-
   return { message, recipientIds };
 }
 
-// CA-24: load durable messages for this authenticated recipient that have not
-// been acknowledged by the receiving client. The API history remains the
-// source of truth if a connection drops while a message is being replayed.
+// CA-24 / CA-30: return only messages not yet acknowledged by this recipient.
+// The final two clauses preserve replay for messages written before CA-30.
 async function loadPendingMessagesForRecipient({ recipientId }) {
   const conversations = await Conversation.find({ participants: recipientId }).select('_id');
   if (!conversations.length) return [];
@@ -45,14 +47,27 @@ async function loadPendingMessagesForRecipient({ recipientId }) {
     conversation: { $in: conversationIds },
     sender: { $ne: recipientId },
     status: 'SENT',
+    $or: [
+      {
+        recipientIds: { $in: [recipientId] },
+        deliveredTo: { $ne: recipientId },
+      },
+      {
+        recipientIds: { $exists: false },
+        deliveredTo: { $ne: recipientId },
+      },
+      {
+        recipientIds: { $size: 0 },
+        deliveredTo: { $ne: recipientId },
+      },
+    ],
   })
     .populate('sender', 'username')
     .sort({ createdAt: 1, _id: 1 });
 }
 
-// A delivery acknowledgement is accepted only from a conversation member
-// other than the sender. The conditional update makes repeated acknowledgements
-// idempotent and stops reconnects from replaying already-acknowledged messages.
+// A recipient can acknowledge only their own pending delivery. A message is
+// globally DELIVERED only when every intended recipient has acknowledged it.
 async function markMessageDelivered({ recipientId, messageId }) {
   if (!mongoose.isValidObjectId(messageId)) {
     throw new AppError(400, 'VALIDATION_ERROR', 'A valid messageId is required.');
@@ -64,19 +79,58 @@ async function markMessageDelivered({ recipientId, messageId }) {
   const conversation = await Conversation.findById(message.conversation);
   if (!conversation) throw new AppError(404, 'NOT_FOUND', 'Conversation not found.');
 
-  const isMember = conversation.participants.some((id) => String(id) === String(recipientId));
-  if (!isMember || String(message.sender) === String(recipientId)) {
+  const recipient = String(recipientId);
+  const sender = String(message.sender);
+  const isMember = conversation.participants.some((id) => String(id) === recipient);
+
+  if (!isMember || sender === recipient) {
     throw new AppError(403, 'FORBIDDEN_NOT_RECIPIENT', 'Only a message recipient can acknowledge delivery.');
   }
 
-  if (message.status !== 'SENT') return { message, newlyDelivered: false };
+  // Legacy messages have no stored recipient list. Infer it from the conversation.
+  const storedRecipientIds = (message.recipientIds || []).map(String);
+  const recipientIds = storedRecipientIds.length > 0
+    ? storedRecipientIds
+    : conversation.participants.map(String).filter((id) => id !== sender);
 
-  const result = await Message.updateOne(
+  if (!recipientIds.includes(recipient)) {
+    throw new AppError(403, 'FORBIDDEN_NOT_RECIPIENT', 'This message was not addressed to this recipient.');
+  }
+
+  if (message.status !== 'SENT' || (message.deliveredTo || []).map(String).includes(recipient)) {
+    return { message, newlyDelivered: false };
+  }
+
+  // $addToSet and the conditional filter make repeated acknowledgements idempotent.
+  const acknowledgement = await Message.updateOne(
+    { _id: message._id, deliveredTo: { $ne: recipientId } },
+    { $addToSet: { deliveredTo: recipientId } }
+  );
+
+  const acknowledgementCount = acknowledgement.modifiedCount ?? acknowledgement.nModified ?? 0;
+  if (acknowledgementCount === 0) {
+    return { message, newlyDelivered: false };
+  }
+
+  const updatedMessage = await Message.findById(message._id);
+  const deliveredIds = (updatedMessage.deliveredTo || []).map(String);
+  const allRecipientsDelivered = recipientIds.every((id) => deliveredIds.includes(id));
+
+  if (!allRecipientsDelivered) {
+    return { message: updatedMessage, newlyDelivered: false };
+  }
+
+  const completion = await Message.updateOne(
     { _id: message._id, status: 'SENT' },
     { $set: { status: 'DELIVERED' } }
   );
-  const modifiedCount = result.modifiedCount ?? result.nModified ?? 0;
-  return { message, newlyDelivered: modifiedCount > 0 };
+
+  const newlyDelivered = (completion.modifiedCount ?? completion.nModified ?? 0) > 0;
+  const finalMessage = newlyDelivered
+    ? await Message.findById(message._id)
+    : updatedMessage;
+
+  return { message: finalMessage, newlyDelivered };
 }
 
 module.exports = { sendMessage, loadPendingMessagesForRecipient, markMessageDelivered };
