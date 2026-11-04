@@ -19,6 +19,8 @@ function createApp() {
   app.use('/api/users', require('./modules/users/routes'));
 
   // Conversations (CA-21)
+  // Group creation and membership updates (CA-29)
+  app.use('/api/groups', require('./modules/group/routes'));
   app.use('/api/conversations', require('./modules/messaging/routes'));
   app.use(notFound);
   app.use(errorHandler);

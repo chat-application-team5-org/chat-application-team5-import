@@ -1,5 +1,21 @@
 const mongoose = require('mongoose');
 
+const memberRoleSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    role: {
+      type: String,
+      enum: ['ADMIN', 'MEMBER'],
+      required: true,
+    },
+  },
+  { _id: false }
+);
+
 const conversationSchema = new mongoose.Schema(
   {
     participants: {
@@ -7,16 +23,85 @@ const conversationSchema = new mongoose.Schema(
       required: true,
       validate: {
         validator(participants) {
-          const unique = new Set(participants.map(String)).size === participants.length;
-          if (!unique || participants.length < 2) return false;
-          return this.type !== 'private' || participants.length === 2;
+          const unique = new Set(participants.map(String)).size
+            === participants.length;
+
+          if (!unique) return false;
+
+          if (this.type === 'private') {
+            return participants.length === 2;
+          }
+
+          return participants.length >= 3;
         },
-        message: 'A private conversation needs exactly two unique participants.',
+        message: 'A conversation has an invalid participant list.',
       },
     },
-    type: { type: String, enum: ['private', 'group'], default: 'private', required: true },
-    // Sorted "idA_idB" key. The unique index on it stops duplicate private chats.
-    participantsKey: { type: String },
+
+    type: {
+      type: String,
+      enum: ['private', 'group'],
+      default: 'private',
+      required: true,
+    },
+
+    // Group-specific metadata.
+    name: {
+      type: String,
+      trim: true,
+      minlength: 3,
+      maxlength: 50,
+      required() {
+        return this.type === 'group';
+      },
+    },
+
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required() {
+        return this.type === 'group';
+      },
+    },
+
+    memberRoles: {
+      type: [memberRoleSchema],
+      default: [],
+      validate: {
+        validator(members) {
+          if (this.type !== 'group') return true;
+
+          if (!this.participants || members.length !== this.participants.length) {
+            return false;
+          }
+
+          const memberIds = members.map((member) => String(member.user));
+          const participantIds = this.participants.map(String);
+
+          const unique = new Set(memberIds).size === memberIds.length;
+          const allParticipantsIncluded = participantIds.every(
+            (id) => memberIds.includes(id)
+          );
+
+          const admins = members.filter(
+            (member) => member.role === 'ADMIN'
+          );
+
+          return (
+            unique &&
+            allParticipantsIncluded &&
+            admins.length === 1 &&
+            String(admins[0].user) === String(this.createdBy)
+          );
+        },
+        message: 'Every group member must have one role and the creator must be the ADMIN.',
+      },
+    },
+
+    // Sorted "idA_idB" key prevents duplicate private conversations.
+    participantsKey: {
+      type: String,
+    },
   },
   { timestamps: true }
 );
@@ -31,9 +116,15 @@ conversationSchema.pre('validate', function setKey() {
   }
 });
 
-conversationSchema.index({ participantsKey: 1 }, { unique: true, sparse: true });
+conversationSchema.index({ participantsKey: 1 }, {
+  unique: true,
+  sparse: true,
+});
+
 conversationSchema.index({ participants: 1 });
 
 const Conversation = mongoose.model('Conversation', conversationSchema);
+
 Conversation.buildParticipantsKey = buildParticipantsKey;
+
 module.exports = Conversation;

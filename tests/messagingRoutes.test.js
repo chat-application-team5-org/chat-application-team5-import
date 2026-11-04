@@ -51,7 +51,15 @@ describe('conversation listing and creation routes', () => {
       populate: jest.fn().mockReturnThis(),
       sort: jest.fn().mockResolvedValue([
         { _id: 'private-1', type: 'private', participants: [{ _id: callerId }, { _id: participantId, username: 'bob' }] },
-        { _id: 'group-1', type: 'group', participants: [{ _id: callerId }, { _id: participantId, username: 'bob' }] },
+        {
+          _id: 'group-1',
+          type: 'group',
+          name: 'Project Team',
+          participants: [
+            { _id: callerId },
+            { _id: participantId, username: 'bob' },
+          ],
+        },
         { _id: 'private-2', type: 'private', participants: [{ _id: callerId }] },
       ]),
     };
@@ -62,7 +70,13 @@ describe('conversation listing and creation routes', () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual([
       { conversationId: 'private-1', type: 'PRIVATE', name: 'bob', lastMessage: '', unreadCount: 0 },
-      { conversationId: 'group-1', type: 'GROUP', name: 'bob', lastMessage: '', unreadCount: 0 },
+      {
+        conversationId: 'group-1',
+        type: 'GROUP',
+        name: 'Project Team',
+        lastMessage: '',
+        unreadCount: 0,
+},
       { conversationId: 'private-2', type: 'PRIVATE', name: 'Private conversation', lastMessage: '', unreadCount: 0 },
     ]);
     expect(Conversation.find).toHaveBeenCalledWith({ participants: callerId });
