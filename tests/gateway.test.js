@@ -349,8 +349,8 @@ expect(presence).toBeDefined();
   });
     test('keeps a user online while another connection remains active', async () => {
     const alice = await login('alice');
-    const bob1 = await login('bob');
-    const bob2 = await login('bob');
+    const bob1 = await login('presence-shared-user');
+    const bob2 = await login('presence-shared-user');
 
     try {
       await waitFor(alice, 'presence:update');
@@ -362,7 +362,7 @@ expect(presence).toBeDefined();
       const prematureOffline = alice.inbox.some(
         (message) =>
           message.type === 'presence:update' &&
-          message.payload.userId === 'bob' &&
+          message.payload.userId === 'presence-shared-user' &&
           message.payload.status === 'offline'
       );
 
@@ -376,7 +376,7 @@ expect(presence).toBeDefined();
         offlinePresence = alice.inbox.find(
           (message) =>
             message.type === 'presence:update' &&
-            message.payload.userId === 'bob' &&
+            message.payload.userId === 'presence-shared-user' &&
             message.payload.status === 'offline'
         );
 
