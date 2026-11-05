@@ -19,6 +19,7 @@ const {
   markMessageDelivered,
 } = require('../src/modules/messaging/messageService');
 const { attachGateway } = require('../src/ws/gateway');
+const { publishGroupUpdate } = require('../src/modules/group/groupEvents');
 const User = require('../src/models/User');
 const Conversation = require('../src/models/Conversation');
 
@@ -161,6 +162,63 @@ describe('WebSocket gateway (CA-19, CA-22, CA-27, CA-24)', () => {
     bob.close();
   });
 
+  it('broadcasts a group message to every online recipient with the sender username', async () => {
+    const alice = await login('alice');
+    const bob = await login('bob');
+    const charlie = await login('charlie');
+
+    sendMessage.mockResolvedValue({
+      message: {
+        _id: 'group-message-1',
+        content: 'Hello group',
+        sender: { username: 'Alice' },
+      },
+      recipientIds: ['bob', 'charlie'],
+    });
+
+    try {
+      alice.send(JSON.stringify({
+        type: 'message:send',
+        payload: {
+          conversationId: 'group-conversation-1',
+          content: 'Hello group',
+          clientMsgId: 'group-client-1',
+        },
+      }));
+
+      const [ack, bobIncoming, charlieIncoming] = await Promise.all([
+        waitFor(alice, 'message:status'),
+        waitFor(bob, 'message:new'),
+        waitFor(charlie, 'message:new'),
+      ]);
+
+      expect(ack.payload).toMatchObject({
+        clientMsgId: 'group-client-1',
+        messageId: 'group-message-1',
+        status: 'SENT',
+      });
+
+      for (const incoming of [bobIncoming, charlieIncoming]) {
+        expect(incoming.payload.message).toMatchObject({
+          _id: 'group-message-1',
+          content: 'Hello group',
+          sender: { username: 'Alice' },
+        });
+      }
+
+      expect(sendMessage).toHaveBeenCalledWith({
+        senderId: 'alice',
+        conversationId: 'group-conversation-1',
+        content: 'Hello group',
+        clientMsgId: 'group-client-1',
+      });
+    } finally {
+      alice.close();
+      bob.close();
+      charlie.close();
+    }
+  });
+
   it('replays pending messages after authentication', async () => {
     loadPendingMessagesForRecipient.mockResolvedValue([
       { _id: 'pending-1', content: 'Stored while offline' },
@@ -291,8 +349,8 @@ expect(presence).toBeDefined();
   });
     test('keeps a user online while another connection remains active', async () => {
     const alice = await login('alice');
-    const bob1 = await login('bob');
-    const bob2 = await login('bob');
+    const bob1 = await login('presence-shared-user');
+    const bob2 = await login('presence-shared-user');
 
     try {
       await waitFor(alice, 'presence:update');
@@ -304,7 +362,7 @@ expect(presence).toBeDefined();
       const prematureOffline = alice.inbox.some(
         (message) =>
           message.type === 'presence:update' &&
-          message.payload.userId === 'bob' &&
+          message.payload.userId === 'presence-shared-user' &&
           message.payload.status === 'offline'
       );
 
@@ -318,7 +376,7 @@ expect(presence).toBeDefined();
         offlinePresence = alice.inbox.find(
           (message) =>
             message.type === 'presence:update' &&
-            message.payload.userId === 'bob' &&
+            message.payload.userId === 'presence-shared-user' &&
             message.payload.status === 'offline'
         );
 
@@ -512,4 +570,41 @@ test('broadcasts offline presence when an unresponsive user is terminated', asyn
     }
   }
 }, 12000);
+});
+
+describe('Group updates (CA-29)', () => {
+  it('delivers group:update only to intended online participants', async () => {
+    const alice = await login('alice');
+    const bob = await login('bob');
+    const charlie = await login('charlie');
+
+    const payload = {
+      action: 'ADDED',
+      conversation: {
+        conversationId: 'group-1',
+        type: 'GROUP',
+        name: 'Project Team',
+        participants: ['alice', 'bob'],
+      },
+    };
+
+    try {
+      publishGroupUpdate('alice', payload);
+      publishGroupUpdate('bob', payload);
+
+      const aliceEvent = await waitFor(alice, 'group:update');
+      const bobEvent = await waitFor(bob, 'group:update');
+
+      expect(aliceEvent.payload).toEqual(payload);
+      expect(bobEvent.payload).toEqual(payload);
+
+      expect(
+        charlie.inbox.some((message) => message.type === 'group:update')
+      ).toBe(false);
+    } finally {
+      alice.close();
+      bob.close();
+      charlie.close();
+    }
+  });
 });

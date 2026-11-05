@@ -82,6 +82,11 @@ describe('loadPendingMessagesForRecipient (CA-24)', () => {
       conversation: { $in: [convId] },
       sender: { $ne: other },
       status: 'SENT',
+      $or: [
+        { recipientIds: { $in: [other] }, deliveredTo: { $ne: other } },
+        { recipientIds: { $exists: false }, deliveredTo: { $ne: other } },
+        { recipientIds: { $size: 0 }, deliveredTo: { $ne: other } },
+      ],
     });
     expect(populate).toHaveBeenCalledWith('sender', 'username');
     expect(sort).toHaveBeenCalledWith({ createdAt: 1, _id: 1 });
@@ -101,21 +106,111 @@ describe('markMessageDelivered (CA-24)', () => {
     conversation: convId,
     sender,
     clientMsgId: 'client-message-1',
+    recipientIds: [other],
+    deliveredTo: [],
     status: 'SENT',
   });
 
   it('marks a message delivered only after a valid recipient acknowledges it', async () => {
     const message = saved();
-    Message.findById.mockResolvedValue(message);
+
+    Message.findById
+      .mockResolvedValueOnce(message)
+      .mockResolvedValueOnce({ ...message, deliveredTo: [other] })
+      .mockResolvedValueOnce({
+        ...message,
+        deliveredTo: [other],
+        status: 'DELIVERED',
+      });
+
     Message.updateOne.mockResolvedValue({ modifiedCount: 1 });
 
-    const result = await markMessageDelivered({ recipientId: other, messageId: String(message._id) });
+    const result = await markMessageDelivered({
+      recipientId: other,
+      messageId: String(message._id),
+    });
 
-    expect(result).toEqual({ message, newlyDelivered: true });
-    expect(Message.updateOne).toHaveBeenCalledWith(
+    expect(result.newlyDelivered).toBe(true);
+    expect(result.message).toMatchObject({ status: 'DELIVERED' });
+
+    expect(Message.updateOne).toHaveBeenNthCalledWith(
+      1,
+      { _id: message._id, deliveredTo: { $ne: other } },
+      { $addToSet: { deliveredTo: other } }
+    );
+
+    expect(Message.updateOne).toHaveBeenNthCalledWith(
+      2,
       { _id: message._id, status: 'SENT' },
       { $set: { status: 'DELIVERED' } }
     );
+  });
+
+  it('keeps a group message pending until every recipient acknowledges it', async () => {
+    const third = oid();
+    const messageId = oid();
+
+    const initial = {
+      _id: messageId,
+      conversation: convId,
+      sender,
+      clientMsgId: 'group-message-1',
+      recipientIds: [other, third],
+      deliveredTo: [],
+      status: 'SENT',
+    };
+
+    const partiallyDelivered = {
+      ...initial,
+      deliveredTo: [other],
+    };
+
+    Conversation.findById.mockResolvedValue({
+      _id: convId,
+      participants: [sender, other, third],
+    });
+
+    Message.findById
+      .mockResolvedValueOnce(initial)
+      .mockResolvedValueOnce(partiallyDelivered);
+
+    Message.updateOne.mockResolvedValue({ modifiedCount: 1 });
+
+    const firstAck = await markMessageDelivered({
+      recipientId: other,
+      messageId: String(messageId),
+    });
+
+    expect(firstAck.newlyDelivered).toBe(false);
+    expect(firstAck.message.status).toBe('SENT');
+    expect(Message.updateOne).toHaveBeenCalledTimes(1);
+
+    Message.findById.mockReset();
+    Message.findById
+      .mockResolvedValueOnce(partiallyDelivered)
+      .mockResolvedValueOnce({
+        ...initial,
+        deliveredTo: [other, third],
+      })
+      .mockResolvedValueOnce({
+        ...initial,
+        deliveredTo: [other, third],
+        status: 'DELIVERED',
+      });
+
+    Message.updateOne.mockReset().mockResolvedValue({ modifiedCount: 1 });
+
+    const finalAck = await markMessageDelivered({
+      recipientId: third,
+      messageId: String(messageId),
+    });
+
+    expect(finalAck.newlyDelivered).toBe(true);
+    expect(finalAck.message.status).toBe('DELIVERED');
+    expect(finalAck.message.deliveredTo.map(String)).toEqual(
+      expect.arrayContaining([String(other), String(third)])
+    );
+    expect(Message.updateOne).toHaveBeenCalledTimes(2);
   });
 
   it('rejects an invalid message id', async () => {

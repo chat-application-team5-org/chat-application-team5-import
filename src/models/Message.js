@@ -14,6 +14,15 @@ const messageSchema = new mongoose.Schema(
         message: 'Message content cannot be blank.',
       },
     },
+    // CA-30: Track delivery independently for every intended recipient.
+    recipientIds: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+      default: [],
+    },
+    deliveredTo: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+      default: [],
+    },
     status: { type: String, enum: ['SENT', 'DELIVERED', 'READ'], default: 'SENT' },
     clientMsgId: { type: String },
   },

@@ -17,6 +17,7 @@ const {
   markOnline,
   markOffline,
 } = require('../modules/presence/presenceService');
+const { onGroupUpdate } = require('../modules/group/groupEvents');
 
 const PING_INTERVAL_MS = 30000;
 const PONG_TIMEOUT_MS = 10000;
@@ -76,6 +77,14 @@ function attachGateway(server, {
 
   // userId -> set of that user's open sockets (CA-22)
   const online = new Map();
+    // CA-29: Deliver group updates to connected group members.
+  const unsubscribeGroupUpdates = onGroupUpdate(({ recipientId, payload }) => {
+    const sockets = online.get(String(recipientId)) || [];
+
+    sockets.forEach((recipientSocket) => {
+      send(recipientSocket, 'group:update', payload);
+    });
+  });
 
   function register(socket, userId) {
     socket.userId = userId;
@@ -469,12 +478,9 @@ function attachGateway(server, {
       socket.pongTimeout = setTimeout(() => {
         socket.pongTimeout = null;
 
-        if (!socket.isAlive) {
-          socket.terminate();
-        }
-      }, pongTimeoutMs);
-    });
-  }, pingIntervalMs);
+wss.on('close', () => {
+  clearInterval(heartbeat);
+    unsubscribeGroupUpdates();
 
   wss.on('close', () => {
     clearInterval(heartbeat);
