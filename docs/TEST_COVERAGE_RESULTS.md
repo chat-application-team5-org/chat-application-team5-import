@@ -1,5 +1,7 @@
 # CA-48 Test and Coverage Results
 
+> Historical report from 30 October. For the 5 November coverage gate, current run results and Test Plan mappings, see [CA-48 Sprint 2 traceability update](CA-48_SPRINT2_TRACEABILITY_UPDATE.md).
+
 **Evidence date:** 2026-10-30
 **Repository:** `chat-application-team5-org/chat-application-team5-import`
 **Branch base:** latest `origin/main` at `03972e38eee4a03eabf39ee7560819a8d9501682`
