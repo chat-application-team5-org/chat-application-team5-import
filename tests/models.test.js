@@ -205,6 +205,13 @@ describe('Message model (CA-14)', () => {
     ).toBeDefined();
   });
 
+  it('accepts an escaped 2000-character message without relaxing the input limit', async () => {
+    const validator = require('validator');
+    const content = validator.escape("'".repeat(2000));
+    expect(await check(new Message({ ...base, content, contentEncoding: 'html-escaped-v1' }))).toBeUndefined();
+    expect(await check(new Message({ ...base, content: validator.escape("'".repeat(2001)), contentEncoding: 'html-escaped-v1' }))).toBeDefined();
+  });
+
   it('rejects a missing sender', async () => {
     expect(
       await check(new Message({

@@ -1,3 +1,4 @@
+const validator = require('validator');
 const { AppError } = require('../../middleware/errorHandler');
 
 const MAX_MESSAGE_LENGTH = 2000;
@@ -13,4 +14,9 @@ function validateMessageContent(content) {
   return content;
 }
 
-module.exports = { validateMessageContent, MAX_MESSAGE_LENGTH };
+// Validate the original text before escaping so entity expansion does not change the limit.
+function sanitizeMessageContent(content) {
+  return validator.escape(validateMessageContent(content));
+}
+
+module.exports = { validateMessageContent, sanitizeMessageContent, MAX_MESSAGE_LENGTH };

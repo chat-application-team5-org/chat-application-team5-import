@@ -41,6 +41,14 @@ describe('sendMessage (CA-27)', () => {
     expect(result.message).toMatchObject({ _id: 'm1' });
     expect(result.recipientIds).toEqual([String(other)]);
   });
+  it('stores escaped message content with an encoding marker', async () => {
+    const savedMessage = { _id: 'm1', populate: jest.fn() };
+    Message.create.mockResolvedValue(savedMessage);
+    await sendMessage({ senderId: sender, conversationId: String(convId), content: '<script>alert(1)</script>' });
+    expect(Message.create).toHaveBeenCalledWith(expect.objectContaining({
+      content: '&lt;script&gt;alert(1)&lt;&#x2F;script&gt;', contentEncoding: 'html-escaped-v1',
+    }));
+  });
   it('rejects (no success) when the database save fails', async () => {
     Message.create.mockRejectedValue(new Error('db down'));
     await expect(
