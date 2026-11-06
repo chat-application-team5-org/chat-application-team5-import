@@ -19,7 +19,7 @@ const messageSchema = new mongoose.Schema(
       type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
       default: [],
     },
-    deliveredTo: {
+    // CA-37: recipients who have opened and read this message.\n    readBy: {\n      type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],\n      default: [],\n    },\n    deliveredTo: {
       type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
       default: [],
     },
