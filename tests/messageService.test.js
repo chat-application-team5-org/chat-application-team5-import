@@ -9,6 +9,7 @@ jest.mock('../src/models/Message', () => ({
   find: jest.fn(),
   findById: jest.fn(),
   updateOne: jest.fn(),
+  updateMany: jest.fn(),
 }));
 
 const Conversation = require('../src/models/Conversation');
@@ -16,7 +17,8 @@ const Message = require('../src/models/Message');
 const {
   sendMessage,
   loadPendingMessagesForRecipient,
-  markMessageDelivered,\n  markMessagesRead,
+  markMessageDelivered,
+  markMessagesRead,
 } = require('../src/modules/messaging/messageService');
 
 const oid = () => new mongoose.Types.ObjectId();
@@ -269,7 +271,8 @@ describe('markMessagesRead (CA-37)', () => {
       _id: { $in: ids },
       conversation: convId,
       sender: { $ne: other },
-      status: { $in: ['SENT', 'DELIVERED'] },
+      status: { $in: ['SENT', 'DELIVERED', 'READ'] },
+      readBy: { $ne: other },
     }, {
       $set: { status: 'READ' },
       $addToSet: { readBy: other },

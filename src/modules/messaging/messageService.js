@@ -153,7 +153,8 @@ async function markMessagesRead({ readerId, conversationId, messageIds }) {
       _id: { $in: uniqueIds },
       conversation: conversation._id,
       sender: { $ne: readerId },
-      status: { $in: ['SENT', 'DELIVERED'] },
+      status: { $in: ['SENT', 'DELIVERED', 'READ'] },
+      readBy: { $ne: readerId },
     },
     { $set: { status: 'READ' }, $addToSet: { readBy: readerId } }
   );
@@ -163,6 +164,7 @@ async function markMessagesRead({ readerId, conversationId, messageIds }) {
     conversation: conversation._id,
     sender: { $ne: readerId },
     status: 'READ',
+    readBy: readerId,
   }).select('_id sender clientMsgId status');
 
   return {

@@ -5,6 +5,7 @@ jest.mock('../src/modules/messaging/messageService', () => ({
   sendMessage: jest.fn(),
   loadPendingMessagesForRecipient: jest.fn(),
   markMessageDelivered: jest.fn(),
+  markMessagesRead: jest.fn(),
 }));
 jest.mock('../src/models/User', () => ({
   findByIdAndUpdate: jest.fn().mockResolvedValue({}),
@@ -16,7 +17,8 @@ jest.mock('../src/models/Conversation', () => ({
 const {
   sendMessage,
   loadPendingMessagesForRecipient,
-  markMessageDelivered,\n  markMessagesRead,
+  markMessageDelivered,
+  markMessagesRead,
 } = require('../src/modules/messaging/messageService');
 const { attachGateway } = require('../src/ws/gateway');
 const { publishGroupUpdate } = require('../src/modules/group/groupEvents');
@@ -59,7 +61,8 @@ afterAll((done) => {
 beforeEach(() => {
   sendMessage.mockReset();
   loadPendingMessagesForRecipient.mockReset().mockResolvedValue([]);
-  markMessageDelivered.mockReset();\n  markMessagesRead.mockReset();
+  markMessageDelivered.mockReset();
+  markMessagesRead.mockReset();
   User.findByIdAndUpdate.mockReset().mockResolvedValue({});
   Conversation.findById.mockReset();
 });

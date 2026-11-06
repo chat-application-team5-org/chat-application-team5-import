@@ -184,6 +184,7 @@ describe('Message model (CA-14)', () => {
 
     expect(await check(m)).toBeUndefined();
     expect(m.status).toBe('SENT');
+    expect(m.readBy).toEqual([]);
   });
 
   it('rejects blank content', async () => {

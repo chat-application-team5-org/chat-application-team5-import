@@ -7,7 +7,8 @@ const User = require('../models/User');
 const {
   sendMessage,
   loadPendingMessagesForRecipient,
-  markMessageDelivered,\n  markMessagesRead,
+  markMessageDelivered,
+  markMessagesRead,
 } = require('../modules/messaging/messageService');
 const {
   markOnline,
@@ -318,7 +319,8 @@ function broadcastPresence(userId, status, lastSeen = null) {
       }
 
       if (msg && msg.type === 'message:send') return handleSend(socket, msg.payload);
-      if (msg && msg.type === 'message:ack') return handleDeliveryAck(socket, msg.payload);\n      if (msg && msg.type === 'message:read') return handleReadAck(socket, msg.payload);
+      if (msg && msg.type === 'message:ack') return handleDeliveryAck(socket, msg.payload);
+      if (msg && msg.type === 'message:read') return handleReadAck(socket, msg.payload);
       if (msg && msg.type === 'typing:start') {
         const { conversationId } = msg.payload || {};
 
