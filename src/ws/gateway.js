@@ -8,6 +8,7 @@ const {
   sendMessage,
   loadPendingMessagesForRecipient,
   markMessageDelivered,
+  markMessagesRead,
 } = require('../modules/messaging/messageService');
 const {
   markOnline,
@@ -215,6 +216,35 @@ function broadcastPresence(userId, status, lastSeen = null) {
     }
   }
 
+  async function handleReadAck(socket, payload = {}) {
+    try {
+      const { messages } = await markMessagesRead({
+        readerId: socket.userId,
+        conversationId: payload.conversationId,
+        messageIds: payload.messageIds,
+      });
+
+      // Notify each original sender that their message has been read.
+      messages.forEach((message) => {
+        const senderId = String(message.sender);
+        const status = {
+          messageId: String(message._id),
+          clientMsgId: message.clientMsgId,
+          status: 'READ',
+        };
+        (online.get(senderId) || []).forEach((senderSocket) => {
+          send(senderSocket, 'message:status', status);
+        });
+      });
+    } catch (err) {
+      const known = Boolean(err.status && err.status < 500);
+      send(socket, 'error', {
+        code: known ? err.code : 'INTERNAL_ERROR',
+        message: known ? err.message : 'Message read status could not be saved',
+      });
+    }
+  }
+
   wss.on('connection', (socket) => {
     socket.isAlive = true;
     socket.authPending = false;
@@ -290,6 +320,7 @@ function broadcastPresence(userId, status, lastSeen = null) {
 
       if (msg && msg.type === 'message:send') return handleSend(socket, msg.payload);
       if (msg && msg.type === 'message:ack') return handleDeliveryAck(socket, msg.payload);
+      if (msg && msg.type === 'message:read') return handleReadAck(socket, msg.payload);
       if (msg && msg.type === 'typing:start') {
         const { conversationId } = msg.payload || {};
 

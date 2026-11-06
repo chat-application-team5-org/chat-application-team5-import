@@ -5,6 +5,7 @@ jest.mock('../src/modules/messaging/messageService', () => ({
   sendMessage: jest.fn(),
   loadPendingMessagesForRecipient: jest.fn(),
   markMessageDelivered: jest.fn(),
+  markMessagesRead: jest.fn(),
 }));
 jest.mock('../src/models/User', () => ({
   findByIdAndUpdate: jest.fn().mockResolvedValue({}),
@@ -17,6 +18,7 @@ const {
   sendMessage,
   loadPendingMessagesForRecipient,
   markMessageDelivered,
+  markMessagesRead,
 } = require('../src/modules/messaging/messageService');
 const { attachGateway } = require('../src/ws/gateway');
 const { publishGroupUpdate } = require('../src/modules/group/groupEvents');
@@ -60,6 +62,7 @@ beforeEach(() => {
   sendMessage.mockReset();
   loadPendingMessagesForRecipient.mockReset().mockResolvedValue([]);
   markMessageDelivered.mockReset();
+  markMessagesRead.mockReset();
   User.findByIdAndUpdate.mockReset().mockResolvedValue({});
   Conversation.findById.mockReset();
 });
@@ -605,6 +608,35 @@ describe('Group updates (CA-29)', () => {
       alice.close();
       bob.close();
       charlie.close();
+    }
+  });
+});
+
+
+describe('Read receipts (CA-37)', () => {
+  it('broadcasts READ status to the original sender', async () => {
+    const alice = await login('alice');
+    const bob = await login('bob');
+    markMessagesRead.mockResolvedValue({
+      messages: [{ _id: 'm-read-1', sender: 'alice', clientMsgId: 'c-read-1' }],
+      newlyRead: 1,
+    });
+
+    try {
+      bob.send(JSON.stringify({
+        type: 'message:read',
+        payload: { conversationId: 'conversation-1', messageIds: ['m-read-1'] },
+      }));
+      const status = await waitFor(alice, 'message:status');
+      expect(status.payload).toMatchObject({
+        messageId: 'm-read-1', clientMsgId: 'c-read-1', status: 'READ',
+      });
+      expect(markMessagesRead).toHaveBeenCalledWith({
+        readerId: 'bob', conversationId: 'conversation-1', messageIds: ['m-read-1'],
+      });
+    } finally {
+      alice.close();
+      bob.close();
     }
   });
 });

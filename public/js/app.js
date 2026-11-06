@@ -213,6 +213,18 @@
 
   Chat.names = {};
 
+  function acknowledgeRead(messages, conversationId) {
+    if (Chat.mock.enabled || !Array.isArray(messages)) return;
+    const userId = (api.session.user || {}).userId;
+    const messageIds = messages
+      .filter((message) => message.senderId !== userId && message.messageId)
+      .map((message) => String(message.messageId));
+
+    if (messageIds.length) {
+      ws.send('message:read', { conversationId, messageIds });
+    }
+  }
+
   async function openConversation(c) {
     if (remoteTypingTimeout) {
       clearTimeout(remoteTypingTimeout);
@@ -266,6 +278,7 @@
           c.conversationId,
           res.messages || []
         );
+        acknowledgeRead(res.messages || [], c.conversationId);
 
         historyState.hasMore = Boolean(res.hasMore);
         historyState.nextCursor = res.nextCursor || null;
@@ -310,6 +323,7 @@
       }
 
       Chat.messages.prepend(res.messages || []);
+      acknowledgeRead(res.messages || [], conversation.conversationId);
 
       state.hasMore = Boolean(res.hasMore);
       state.nextCursor = res.nextCursor || null;
@@ -470,7 +484,8 @@
 
     if (!message) return;
 
-    Chat.messages.add(api.normalize.message(message));
+    const normalized = api.normalize.message(message);
+    const shown = Chat.messages.add(normalized);
 
     const messageId = message.messageId || message._id;
 
@@ -478,6 +493,10 @@
       ws.send('message:ack', {
         messageId: String(messageId),
       });
+    }
+
+    if (shown && currentConversation) {
+      acknowledgeRead([normalized], currentConversation.conversationId);
     }
   });
 

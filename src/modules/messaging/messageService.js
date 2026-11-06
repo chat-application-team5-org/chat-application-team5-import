@@ -133,4 +133,49 @@ async function markMessageDelivered({ recipientId, messageId }) {
   return { message: finalMessage, newlyDelivered };
 }
 
-module.exports = { sendMessage, loadPendingMessagesForRecipient, markMessageDelivered };
+// CA-37: A recipient marks messages as read only after opening the conversation.
+async function markMessagesRead({ readerId, conversationId, messageIds }) {
+  if (!mongoose.isValidObjectId(conversationId) || !Array.isArray(messageIds) ||
+      messageIds.length === 0 || messageIds.some((id) => !mongoose.isValidObjectId(id))) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'A valid conversationId and messageIds are required.');
+  }
+
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation) throw new AppError(404, 'NOT_FOUND', 'Conversation not found.');
+
+  const reader = String(readerId);
+  const isMember = conversation.participants.some((id) => String(id) === reader);
+  if (!isMember) throw new AppError(403, 'FORBIDDEN_NOT_MEMBER', 'You are not part of this conversation.');
+
+  const uniqueIds = [...new Set(messageIds.map(String))];
+  const changed = await Message.updateMany(
+    {
+      _id: { $in: uniqueIds },
+      conversation: conversation._id,
+      sender: { $ne: readerId },
+      status: { $in: ['SENT', 'DELIVERED', 'READ'] },
+      readBy: { $ne: readerId },
+    },
+    { $set: { status: 'READ' }, $addToSet: { readBy: readerId } }
+  );
+
+  const messages = await Message.find({
+    _id: { $in: uniqueIds },
+    conversation: conversation._id,
+    sender: { $ne: readerId },
+    status: 'READ',
+    readBy: readerId,
+  }).select('_id sender clientMsgId status');
+
+  return {
+    messages,
+    newlyRead: changed.modifiedCount ?? changed.nModified ?? 0,
+  };
+}
+
+module.exports = {
+  sendMessage,
+  loadPendingMessagesForRecipient,
+  markMessageDelivered,
+  markMessagesRead,
+};
