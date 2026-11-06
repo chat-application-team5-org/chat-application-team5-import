@@ -16,7 +16,7 @@ const Message = require('../src/models/Message');
 const {
   sendMessage,
   loadPendingMessagesForRecipient,
-  markMessageDelivered,
+  markMessageDelivered,\n  markMessagesRead,
 } = require('../src/modules/messaging/messageService');
 
 const oid = () => new mongoose.Types.ObjectId();
@@ -247,5 +247,47 @@ describe('markMessageDelivered (CA-24)', () => {
     Message.findById.mockResolvedValue(null);
     await expect(markMessageDelivered({ recipientId: other, messageId: String(oid()) }))
       .rejects.toMatchObject({ status: 404 });
+  });
+});
+
+
+describe('markMessagesRead (CA-37)', () => {
+  it('marks only incoming messages in a conversation as read for a member', async () => {
+    const ids = [String(oid()), String(oid())];
+    Message.updateMany.mockResolvedValue({ modifiedCount: 2 });
+    Message.find.mockReturnValue({
+      select: jest.fn().mockResolvedValue(ids.map((_id) => ({
+        _id, sender, clientMsgId: 'client-1', status: 'READ',
+      }))),
+    });
+
+    const result = await markMessagesRead({
+      readerId: other, conversationId: String(convId), messageIds: ids,
+    });
+
+    expect(Message.updateMany).toHaveBeenCalledWith({
+      _id: { $in: ids },
+      conversation: convId,
+      sender: { $ne: other },
+      status: { $in: ['SENT', 'DELIVERED'] },
+    }, {
+      $set: { status: 'READ' },
+      $addToSet: { readBy: other },
+    });
+    expect(result.newlyRead).toBe(2);
+    expect(result.messages).toHaveLength(2);
+  });
+
+  it('rejects a non-member and does not update messages', async () => {
+    await expect(markMessagesRead({
+      readerId: oid(), conversationId: String(convId), messageIds: [String(oid())],
+    })).rejects.toMatchObject({ code: 'FORBIDDEN_NOT_MEMBER' });
+    expect(Message.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('validates conversation and message identifiers', async () => {
+    await expect(markMessagesRead({
+      readerId: other, conversationId: 'bad', messageIds: ['bad'],
+    })).rejects.toMatchObject({ status: 400 });
   });
 });
