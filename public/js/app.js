@@ -309,7 +309,7 @@
         return;
       }
 
-      Chat.messages.prepend(res.messages || []);
+      Chat.messages.prepend(res.messages || []);\n      acknowledgeRead(res.messages || [], conversation.conversationId);
 
       state.hasMore = Boolean(res.hasMore);
       state.nextCursor = res.nextCursor || null;
