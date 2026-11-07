@@ -34,21 +34,23 @@ function errorHandler(err, req, res, _next) {
     status = 503;
     code = 'SERVICE_UNAVAILABLE';
     message = 'Service temporarily unavailable, please try again';
+  } else if (err instanceof AppError && Number.isInteger(err.status) && err.status >= 400 && err.status <= 499) {
+    status = err.status;
+    code = err.code;
+    message = err.message;
+  } else if (err?.type === 'entity.parse.failed') {
+    status = 400;
+    code = 'VALIDATION_ERROR';
+    message = 'Invalid JSON.';
+  } else if (err?.type === 'entity.too.large') {
+    status = 413;
+    code = 'VALIDATION_ERROR';
+    message = 'Request body is too large.';
   } else {
-    status =
-      Number.isInteger(err.status) && err.status >= 400 && err.status <= 599
-        ? err.status
-        : 500;
-
-    code =
-      typeof err.code === 'string' && err.code
-        ? err.code
-        : 'INTERNAL_ERROR';
-
-    message =
-      status >= 500
-        ? 'Something went wrong, please try again'
-        : err.message;
+    // Third-party error messages and codes can contain request data or secrets.
+    status = Number.isInteger(err?.status) && err.status >= 400 && err.status < 500 ? err.status : 500;
+    code = status < 500 ? 'BAD_REQUEST' : 'INTERNAL_ERROR';
+    message = status < 500 ? 'Request could not be processed.' : 'Something went wrong, please try again';
   }
 
   const requestId = req.requestId || null;

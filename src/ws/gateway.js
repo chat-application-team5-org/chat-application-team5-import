@@ -474,17 +474,16 @@ function attachGateway(server, {
 
       socket.isAlive = false;
       socket.ping();
-
       socket.pongTimeout = setTimeout(() => {
         socket.pongTimeout = null;
-
-wss.on('close', () => {
-  clearInterval(heartbeat);
-    unsubscribeGroupUpdates();
+        if (!socket.isAlive) socket.terminate();
+      }, pongTimeoutMs);
+    });
+  }, pingIntervalMs);
 
   wss.on('close', () => {
     clearInterval(heartbeat);
-
+    unsubscribeGroupUpdates();
     wss.clients.forEach((socket) => {
       clearTimeout(socket.pongTimeout);
       socket.pongTimeout = null;
