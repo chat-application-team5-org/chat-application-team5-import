@@ -1,9 +1,11 @@
+
 jest.mock('mongoose', () => ({
   connect: jest.fn(),
   connection: { readyState: 0 },
 }));
 
 const mongoose = require('mongoose');
+const logger = require('../src/utils/logger');
 const { connectDb, dbState } = require('../src/db/connect');
 
 describe('database connection helpers', () => {
@@ -13,38 +15,59 @@ describe('database connection helpers', () => {
   });
 
   it('does not attempt a connection when no URI is configured', async () => {
-    const warning = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const warning = jest.spyOn(logger, 'warn');
 
     await expect(connectDb('')).resolves.toBe(false);
 
     expect(mongoose.connect).not.toHaveBeenCalled();
-    expect(warning).toHaveBeenCalledWith('MONGO_URI is not set; starting without a database.');
+    expect(warning).toHaveBeenCalledWith('database_uri_missing', {
+      code: 'SERVICE_UNAVAILABLE',
+      status: 503,
+    });
+
     warning.mockRestore();
   });
 
   it('connects with a bounded server-selection timeout', async () => {
-    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const info = jest.spyOn(logger, 'info');
     mongoose.connect.mockResolvedValue(undefined);
 
-    await expect(connectDb('mongodb://localhost/chatapp_test')).resolves.toBe(true);
+    await expect(
+      connectDb('mongodb://localhost/chatapp_test')
+    ).resolves.toBe(true);
 
     expect(mongoose.connect).toHaveBeenCalledWith(
       'mongodb://localhost/chatapp_test',
       { serverSelectionTimeoutMS: 5000 }
     );
-    expect(log).toHaveBeenCalledWith('MongoDB connected');
-    log.mockRestore();
+
+    expect(info).toHaveBeenCalledWith('database_connected');
+
+    info.mockRestore();
   });
 
   it('returns false and logs a safe connection error when MongoDB is unreachable', async () => {
-    const error = new Error('connection refused');
-    const logError = jest.spyOn(console, 'error').mockImplementation(() => {});
-    mongoose.connect.mockRejectedValue(error);
+    const error = jest.spyOn(logger, 'error');
+    mongoose.connect.mockRejectedValue(
+      new Error('connection refused')
+    );
 
-    await expect(connectDb('mongodb://localhost/chatapp_test')).resolves.toBe(false);
+    await expect(
+      connectDb('mongodb://localhost/chatapp_test')
+    ).resolves.toBe(false);
 
-    expect(logError).toHaveBeenCalledWith('MongoDB connection failed:', 'connection refused');
-    logError.mockRestore();
+    expect(error).toHaveBeenCalledWith('database_connection_failed', {
+      code: 'SERVICE_UNAVAILABLE',
+      status: 503,
+    });
+
+    // The raw database error must never be passed to the logger.
+    expect(error).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ message: 'connection refused' })
+    );
+
+    error.mockRestore();
   });
 
   it.each([

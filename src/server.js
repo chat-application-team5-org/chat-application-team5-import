@@ -1,8 +1,10 @@
+
 const http = require('http');
 const config = require('./config');
 const { createApp } = require('./app');
 const { connectDb } = require('./db/connect');
 const { attachGateway } = require('./ws/gateway');
+const logger = require('./utils/logger');
 
 async function main() {
   await connectDb(config.mongoUri);
@@ -12,11 +14,16 @@ async function main() {
   attachGateway(server, { allowedOrigin: config.allowedOrigin });
 
   server.listen(config.port, () => {
-    console.log(`Chat server listening on http://localhost:${config.port} (WebSocket path /ws)`);
+    logger.info('server_listening', {
+      status: server.listening ? 'listening' : 'not_listening',
+    });
   });
 }
 
-main().catch((err) => {
-  console.error('Fatal startup error:', err);
+main().catch(() => {
+  logger.error('server_startup_failed', {
+    code: 'INTERNAL_ERROR',
+    status: 500,
+  });
   process.exit(1);
 });
