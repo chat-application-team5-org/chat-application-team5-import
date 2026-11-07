@@ -1,6 +1,6 @@
 # CA-48 Sprint 2 traceability and verification update
 
-**Evidence date:** 2026-11-05. **Base:** `main` at `4d55fdc838b7c4484de4476ec1a3f043fca2ed44`, with the local CA-26 and CA-31 commits applied. This is an update to the Test Plan's Section 13 RTM, not a claim of complete execution or formal sign-off. A separate team RTM is proposed in PR #67; reconcile this update with it during review, rather than replacing it.
+**Evidence date:** 2026-11-07. **Base:** `main` at `418a168c2190dc08116403ff15bb5d2f43a38fb0`, with local CA-26, CA-31, CA-44 and CA-48 changes applied. This is an update to the Test Plan's Section 13 RTM, not a claim of complete execution or formal sign-off. The team RTM from PR #67 has been merged as `docs/REQUIREMENTS_TRACEABILITY_MATRIX.md`; reconcile this update with it during review, rather than replacing it.
 
 ## Test Plan case mapping
 
@@ -41,11 +41,11 @@ The following mappings are transcribed from Section 13 of `Test_Plan_Chat_Applic
 |---|---|---|
 | REQ-13 / SEC-4; TC-MSG-05 | `tests/validation.test.js`, `tests/messageService.test.js`, `tests/messageXssClient.test.js`, `tests/auth.test.js`, and the CA-26/CA-31 MongoDB integration scenario. New stored messages are escaped; the browser decodes one marked layer and uses `textContent`. | **Partially verified:** script and image payloads are covered in unit tests, operator password is rejected, and the script payload is checked through a real database, WebSocket and history. The client test uses a simulated DOM, not a real browser execution test. Legacy records are not migrated and must be rendered as text. SEC-4 covers more than messages and is not fully verified here. |
 | REQ-18 / SEC-5 / BR-3; TC-GRP-04 | `tests/authorization.test.js`, `tests/messagingRoutes.test.js`, `tests/messageService.test.js`, `tests/gateway.test.js`, and the CA-26/CA-31 integration scenario cover outsider reads and sends on private/group conversations, filtered listing, and subsequent requests from a directly removed group member. | **Partially verified:** actual removal was simulated with a database update; CA-32 group membership management and concurrent revocation races are not tested. SEC-5 covers every request/event, beyond these tested paths. |
-| SAF-3 / SEC-2; TC-PRS-04, TC-SAF-01, TC-SEC-01 | CA-44 has a separate open PR #68; this branch does not include or verify it. | **Not verified by this update.** Review and validate PR #68 independently. |
-| Other requirements | See the full Test Plan and the team's separate RTM PR. | **Not assessed in this update.** Planned IDs do not establish passing execution results. |
+| SAF-3 / SEC-2; TC-PRS-04, TC-SAF-01, TC-SEC-01 | CA-44 PR #68 is included with a local heartbeat syntax repair and security tests for safe errors and logs. | **Partially verified:** local unit, integration and lint checks pass. Review the combined changes and verify security/reliability scenarios before sign-off; PR #68 remains open separately. |
+| Other requirements | See the full Test Plan and the merged team RTM. | **Not assessed in this update.** Planned IDs do not establish passing execution results. |
 
 ## Local verification
 
-- `npm run test:coverage`: 18 suites, 147 tests passed; aggregate server coverage: statements 92.54%, branches 79.89%, functions 92.63%, lines 93.75%. Jest now enforces 70% in each aggregate category; CI runs the coverage command. Browser code and the separately run integration suite are excluded from those figures; `src/server.js` remains untested.
-- `npm run test:integration`: 1 suite, 2 tests passed using an isolated local MongoDB 7.0.16 database named `chatapp_test_ca48` and a test-only secret. The test drops that disposable database. This run includes persistence/restart/replay and the new security scenario.
+- `npm run test:coverage`: 19 suites, 155 tests passed; aggregate server coverage: statements 91.73%, branches 77.37%, functions 92.66%, lines 92.60%. Jest now enforces 70% in each aggregate category; CI runs the coverage command. Browser code and the separately run integration suite are excluded from those figures; `src/server.js` remains untested.
+- `npm run test:integration`: 1 suite, 2 tests passed using an isolated local MongoDB 7.0.16 database named `chatapp_test_sprint2` and a test-only secret. The test drops that disposable database. This run includes persistence/restart/replay and the new security scenario.
 - `npm run lint`: passed. These are local results, not a claim that GitHub CI or a teammate review has passed.

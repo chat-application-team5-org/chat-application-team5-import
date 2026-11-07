@@ -295,6 +295,10 @@ function attachGateway(server, {
       });
     } catch (err) {
       const known = Boolean(err.status && err.status < 500);
+      logger.error('websocket_read_ack_failed', {
+        requestId: socket.requestId, userId: socket.userId,
+        code: known ? err.code : 'INTERNAL_ERROR', status: known ? err.status : 500,
+      });
       send(socket, 'error', {
         code: known ? err.code : 'INTERNAL_ERROR',
         message: known ? err.message : 'Message read status could not be saved',
