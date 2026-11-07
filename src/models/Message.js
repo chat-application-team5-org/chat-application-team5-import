@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const validator = require('validator');
 
 const messageSchema = new mongoose.Schema(
   {
@@ -8,12 +9,21 @@ const messageSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      maxlength: 2000,
-      validate: {
-        validator: (value) => value.trim().length > 0,
-        message: 'Message content cannot be blank.',
-      },
+      // Escaped text can expand to six characters per input character.
+      maxlength: 12000,
+      validate: [
+        { validator: (value) => value.trim().length > 0, message: 'Message content cannot be blank.' },
+        {
+          validator: function (value) {
+            const text = this.contentEncoding === 'html-escaped-v1' ? validator.unescape(value) : value;
+            return text.length <= 2000;
+          },
+          message: 'Message content cannot exceed 2000 characters.',
+        },
+      ],
     },
+    // Missing on legacy messages, which are already plain text.
+    contentEncoding: { type: String, enum: ['html-escaped-v1'] },
     // CA-30: Track delivery independently for every intended recipient.
     recipientIds: {
       type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],

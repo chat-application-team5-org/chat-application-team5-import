@@ -11,6 +11,7 @@ const {
 
 const { currentUser } = require('../../middleware/currentUser');
 const { AppError } = require('../../middleware/errorHandler');
+const { assertConversationMember } = require('./authorization');
 
 const router = express.Router();
 
@@ -129,21 +130,7 @@ router.get('/:id/messages', async (req, res, next) => {
 
     const conversation = await Conversation.findById(req.params.id);
 
-    if (!conversation) {
-      throw new AppError(404, 'NOT_FOUND', 'Conversation not found.');
-    }
-
-    const isMember = conversation.participants.some(
-      (id) => String(id) === req.userId
-    );
-
-    if (!isMember) {
-      throw new AppError(
-        403,
-        'FORBIDDEN_NOT_MEMBER',
-        'You are not part of this conversation.'
-      );
-    }
+    assertConversationMember(conversation, req.userId);
 
     const requested = Number.parseInt(req.query.limit, 10);
 

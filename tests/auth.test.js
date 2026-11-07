@@ -67,6 +67,14 @@ describe('authentication API (CA-11, CA-16, CA-17, CA-18, CA-20)', () => {
     expect(User.create).not.toHaveBeenCalled();
   });
 
+  test('rejects a NoSQL operator as a password without querying users (TC-MSG-05)', async () => {
+    const response = await request(app).post('/api/auth/login')
+      .send({ identifier: 'alice', password: { $ne: '' } });
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    expect(User.findOne).not.toHaveBeenCalled();
+  });
+
   test.each(['alice', 'ALICE@EXAMPLE.COM'])('login accepts username or email and returns a 24-hour JWT', async (identifier) => {
     User.findOne.mockResolvedValue(user);
     const response = await request(app).post('/api/auth/login').send({ identifier, password: 'Secret123' });

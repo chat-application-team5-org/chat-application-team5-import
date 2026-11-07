@@ -3,21 +3,19 @@ const mongoose = require('mongoose');
 const Conversation = require('../../models/Conversation');
 const Message = require('../../models/Message');
 const { AppError } = require('../../middleware/errorHandler');
-const { validateMessageContent } = require('./validation');
+const { sanitizeMessageContent } = require('./validation');
+const { assertConversationMember } = require('./authorization');
 
 // CA-27 / CA-30: persist first, then let the gateway acknowledge and broadcast.
 async function sendMessage({ senderId, conversationId, content, clientMsgId }) {
-  validateMessageContent(content);
+  const sanitizedContent = sanitizeMessageContent(content);
 
   if (!mongoose.isValidObjectId(conversationId)) {
     throw new AppError(400, 'VALIDATION_ERROR', 'A valid conversationId is required.');
   }
 
   const conversation = await Conversation.findById(conversationId);
-  if (!conversation) throw new AppError(404, 'NOT_FOUND', 'Conversation not found.');
-
-  const isMember = conversation.participants.some((id) => String(id) === String(senderId));
-  if (!isMember) throw new AppError(403, 'FORBIDDEN_NOT_MEMBER', 'You are not part of this conversation.');
+  assertConversationMember(conversation, senderId);
 
   const recipientIds = conversation.participants
     .map(String)
@@ -26,7 +24,8 @@ async function sendMessage({ senderId, conversationId, content, clientMsgId }) {
   const message = await Message.create({
     conversation: conversation._id,
     sender: senderId,
-    content,
+    content: sanitizedContent,
+    contentEncoding: 'html-escaped-v1',
     clientMsgId,
     recipientIds,
     deliveredTo: [],

@@ -91,3 +91,7 @@ Never commit `.env`, passwords or tokens.
 ## Offline message delivery (CA-24)
 
 Messages are written to MongoDB before the sender receives a `SENT` status. When an authenticated recipient connects, the server replays incoming messages that remain `SENT`. The client acknowledges a received message using `message:ack`; the server verifies that the acknowledger is a conversation participant other than the sender, records `DELIVERED`, and notifies the sender's active WebSocket sessions. If a client disconnects before its acknowledgement reaches the server, the message remains pending and is replayed on a later connection. Replays are at-least-once until acknowledged; the UI de-duplicates by persisted message ID, and the REST history remains durable.
+
+## Message content safety (CA-26)
+
+Message text is validated at the 2,000-character input limit, then HTML-escaped before storage. New messages carry `contentEncoding: html-escaped-v1` on the REST and WebSocket interfaces. Clients that need the original display text should decode **one layer** and insert it as text, never HTML. Unmarked older messages are legacy plain text and must also be rendered as text. Existing records are not migrated; consumers must not inject either form into HTML, attributes, URLs or scripts. Other input-validation and security checks remain separate work.

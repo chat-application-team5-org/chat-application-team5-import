@@ -15,6 +15,7 @@ jest.mock('../src/modules/group/groupEvents', () => ({
 const { createGroup } = require('../src/modules/group/groupService');
 const { publishGroupUpdate } = require('../src/modules/group/groupEvents');
 const { createApp } = require('../src/app');
+const { AppError } = require('../src/middleware/errorHandler');
 
 const app = createApp();
 
@@ -125,13 +126,7 @@ describe('Group routes (CA-29)', () => {
 
   it('returns validation errors from the group service', async () => {
     createGroup.mockRejectedValue(
-      Object.assign(
-        new Error('Group name must contain between 3 and 50 characters.'),
-        {
-          status: 400,
-          code: 'VALIDATION_ERROR',
-        }
-      )
+      new AppError(400, 'VALIDATION_ERROR', 'Group name must contain between 3 and 50 characters.')
     );
 
     const response = await request(app)

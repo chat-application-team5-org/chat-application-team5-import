@@ -405,3 +405,65 @@ test('offline messages replay after reconnect, are acknowledged once, and surviv
   bobGroupSocket.close();
 
 });
+
+test('CA-26/CA-31: escaped messages and current membership across REST and WebSockets', async () => {
+  const users = [];
+  for (const username of ['guardalice', 'guardbob', 'guardcarol', 'guarddave']) {
+    const registration = await requestJson('/api/auth/register', {
+      method: 'POST', body: { username, email: `${username}@example.com`, password: 'Secret123' },
+    });
+    expect(registration.response.status).toBe(201);
+    const login = await requestJson('/api/auth/login', { method: 'POST', body: { identifier: username, password: 'Secret123' } });
+    expect(login.response.status).toBe(200);
+    users.push({ id: registration.data.userId, token: login.data.token });
+  }
+  const [alice, bob, carol, outsider] = users;
+  const privateChat = await requestJson('/api/conversations', {
+    method: 'POST', token: alice.token, body: { participantId: bob.id },
+  });
+  const group = await requestJson('/api/groups', {
+    method: 'POST', token: alice.token, body: { name: 'Security Group', memberIds: [bob.id, carol.id] },
+  });
+  expect(privateChat.response.status).toBe(200);
+  expect(group.response.status).toBe(201);
+  const privateId = String(privateChat.data.conversation._id);
+  const groupId = group.data.conversation.conversationId;
+  const aliceSocket = await connectSocket(alice.token);
+  const bobSocket = await connectSocket(bob.token);
+  const outsiderSocket = await connectSocket(outsider.token);
+
+  // The actual saved and live content is escaped; browsers render a decoded text node.
+  const payload = '<script>alert(1)</script> &lt;img&gt;';
+  const sent = nextEvent(aliceSocket, 'message:status', (p) => p.clientMsgId === 'xss-case');
+  const incoming = nextEvent(bobSocket, 'message:new', (p) => p.message && p.message.clientMsgId === 'xss-case');
+  aliceSocket.send(JSON.stringify({ type: 'message:send', payload: { conversationId: groupId, content: payload, clientMsgId: 'xss-case' } }));
+  const status = await sent;
+  const live = await incoming;
+  const stored = await Message.findById(status.messageId);
+  expect(stored.content).toBe(require('validator').escape(payload));
+  expect(stored.contentEncoding).toBe('html-escaped-v1');
+  expect(live.message.content).toBe(stored.content);
+  const history = await requestJson(`/api/conversations/${groupId}/messages`, { token: bob.token });
+  expect(history.data.messages[0].content).toBe(stored.content);
+
+  for (const id of [privateId, groupId]) {
+    const deniedHistory = await requestJson(`/api/conversations/${id}/messages`, { token: outsider.token });
+    expect(deniedHistory.response.status).toBe(403);
+    expect(deniedHistory.data.error.code).toBe('FORBIDDEN_NOT_MEMBER');
+    const rejection = nextEvent(outsiderSocket, 'error', (p) => p.clientMsgId === `blocked-${id}`);
+    outsiderSocket.send(JSON.stringify({ type: 'message:send', payload: { conversationId: id, content: 'not allowed', clientMsgId: `blocked-${id}` } }));
+    expect((await rejection).code).toBe('FORBIDDEN_NOT_MEMBER');
+    expect(await Message.countDocuments({ conversation: id, clientMsgId: `blocked-${id}` })).toBe(0);
+  }
+  const outsiderList = await requestJson('/api/conversations', { token: outsider.token });
+  expect(outsiderList.data.some((entry) => [privateId, groupId].includes(entry.conversationId))).toBe(false);
+
+  // Direct database removal simulates a future membership-management operation (CA-32).
+  await Conversation.updateOne({ _id: groupId }, { $pull: { participants: bob.id } });
+  const removedHistory = await requestJson(`/api/conversations/${groupId}/messages`, { token: bob.token });
+  expect(removedHistory.response.status).toBe(403);
+  const removedSend = nextEvent(bobSocket, 'error', (p) => p.clientMsgId === 'removed-send');
+  bobSocket.send(JSON.stringify({ type: 'message:send', payload: { conversationId: groupId, content: 'blocked', clientMsgId: 'removed-send' } }));
+  expect((await removedSend).code).toBe('FORBIDDEN_NOT_MEMBER');
+  expect(await Message.countDocuments({ conversation: groupId, clientMsgId: 'removed-send' })).toBe(0);
+});

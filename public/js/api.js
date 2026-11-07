@@ -54,13 +54,21 @@ window.Chat = window.Chat || {};
       ? v
       : String(v);
 
+  // Decode exactly one layer for marked messages; rendering still uses textContent.
+  // Do not parse HTML or decode unmarked legacy messages.
+  function displayContent(m) {
+    if (m.contentEncoding !== 'html-escaped-v1' || typeof m.content !== 'string') return m.content;
+    const entities = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#x27;': "'", '&#x2F;': '/', '&#96;': '`' };
+    return m.content.replace(/&(?:amp|lt|gt|quot|#x27|#x2F|#96);/g, (entity) => entities[entity]);
+  }
+
   function normalizeMessage(m) {
     return {
       messageId: m.messageId || idOf(m._id),
       conversationId: m.conversationId || idOf(m.conversation),
       senderId: m.senderId || idOf(m.sender),
       senderName: m.senderName || (m.sender && m.sender.displayName) || (m.sender && m.sender.username) || '',
-      content: m.content,
+      content: displayContent(m),
       sentAt: m.sentAt || m.createdAt,
       status: m.status,
       clientMsgId: m.clientMsgId,
