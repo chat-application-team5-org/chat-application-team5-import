@@ -5,6 +5,8 @@
 **Baseline inspected:** `main` at `4d55fdc838b7c4484de4476ec1a3f043fca2ed44`  
 **RTM preparation date:** 5 November 2026
 
+**Sprint 3 update:** This matrix is a historical baseline, not the current security status. The source PDFs were subsequently inspected; see `docs/CA-46_SECURITY_VALIDATION.md` and `docs/CA-43_DEPLOYMENT_SECURITY.md` for updated security evidence and remaining verification.
+
 ## 1. Scope and evidence rules
 
 This matrix links requirement identifiers visible in the repository's historical sprint backlog and JIRA backlog export to the implementation and executable tests present on the inspected `main` branch. Requirement descriptions below are concise backlog paraphrases, not quotations from the SRS.

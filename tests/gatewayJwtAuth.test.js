@@ -83,6 +83,22 @@ describe('WebSocket JWT authentication (CA-19)', () => {
     expect(await socket.closed).toBe(4401);
   });
 
+  it.each(['none', 'modified'])('rejects %s JWT on WebSocket', async (kind) => {
+    const encode = (object) => Buffer.from(JSON.stringify(object)).toString('base64url');
+    let token;
+    if (kind === 'none') {
+      token = `${encode({ alg: 'none', typ: 'JWT' })}.${encode({ sub: 'user-123' })}.`;
+    } else {
+      const parts = jwt.sign({ sub: 'user-123' }, JWT_SECRET).split('.');
+      parts[1] = encode({ sub: 'other-user' });
+      token = parts.join('.');
+    }
+    const socket = await connect();
+    socket.send(JSON.stringify({ type: 'auth', payload: { token } }));
+    expect((await waitFor(socket, 'error')).payload.code).toBe('AUTH_FAILED');
+    expect(await socket.closed).toBe(4401);
+  });
+
   it('rejects a missing JWT with AUTH_FAILED and close code 4401', async () => {
     const socket = await connect();
     socket.send(JSON.stringify({ type: 'auth', payload: {} }));
