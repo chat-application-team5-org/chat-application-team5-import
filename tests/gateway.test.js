@@ -150,6 +150,36 @@ describe('WebSocket gateway (CA-19, CA-22, CA-27, CA-24)', () => {
     expect(ws.inbox.some((message) => message.type === 'auth:ok')).toBe(false);
   });
 
+  it('enforces 20 sends per user across sockets and reconnects', async () => {
+    const first = await login('rate-user');
+    const second = await login('rate-user');
+    sendMessage.mockResolvedValue({ message: { _id: 'test' }, recipientIds: [] });
+    try {
+      for (let i = 0; i < 20; i += 1) {
+        (i % 2 ? first : second).send(JSON.stringify({ type: 'message:send', payload: { content: 'hi', clientMsgId: String(i) } }));
+      }
+      for (let i = 0; i < 100 && sendMessage.mock.calls.length < 20; i += 1) await new Promise((r) => setTimeout(r, 10));
+      expect(sendMessage).toHaveBeenCalledTimes(20);
+      first.close();
+      const reconnect = await login('rate-user');
+      try {
+        reconnect.send(JSON.stringify({ type: 'message:send', payload: { content: 'blocked', clientMsgId: 'blocked' } }));
+        const error = await waitFor(reconnect, 'error');
+        expect(error.payload).toMatchObject({ code: 'RATE_LIMITED', clientMsgId: 'blocked' });
+        expect(sendMessage).toHaveBeenCalledTimes(20);
+      } finally { reconnect.close(); }
+    } finally { first.close(); second.close(); }
+  });
+
+  it('closes an oversized frame without crashing the gateway', async () => {
+    const ws = await login('oversize-user');
+    ws.send('x'.repeat(4097));
+    expect(await ws.closed).toBe(1009);
+    const other = await login('still-responsive');
+    expect(other.readyState).toBe(WebSocket.OPEN);
+    other.close();
+  });
+
   it('delivers a saved message to the online recipient and acks the sender', async () => {
     const alice = await login('alice');
     const bob = await login('bob');

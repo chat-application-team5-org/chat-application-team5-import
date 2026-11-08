@@ -7,6 +7,7 @@ const { assertConversationMember } = require('../modules/messaging/authorization
 const config = require('../config');
 const User = require('../models/User');
 const logger = require('../utils/logger');
+const { createMessageRateLimiter } = require('./rateLimiter');
 
 const {
   sendMessage,
@@ -79,6 +80,10 @@ function attachGateway(server, {
 
   // userId -> set of that user's open sockets (CA-22)
   const online = new Map();
+  const messageRateLimiter = createMessageRateLimiter();
+  // Keep disconnected users' windows until they expire, but reclaim idle entries.
+  const rateCleanup = setInterval(() => messageRateLimiter.purge(), 10000);
+  rateCleanup.unref();
     // CA-29: Deliver group updates to connected group members.
   const unsubscribeGroupUpdates = onGroupUpdate(({ recipientId, payload }) => {
     const sockets = online.get(String(recipientId)) || [];
@@ -192,7 +197,13 @@ function attachGateway(server, {
   }
 
   async function handleSend(socket, payload = {}) {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) payload = {};
     const { conversationId, content, clientMsgId } = payload;
+    if (!messageRateLimiter.allow(socket.userId)) {
+      return send(socket, 'error', {
+        code: 'RATE_LIMITED', message: 'Too many messages. Please try again later.', clientMsgId,
+      });
+    }
 
     try {
       // Persist first. Nothing below runs if the save fails.
@@ -326,6 +337,11 @@ function attachGateway(server, {
 
       socket.close(4401, 'AUTH_TIMEOUT');
     }, authTimeoutMs);
+
+    // ws emits an error for oversized or malformed frames; do not let it crash the process.
+    socket.on('error', () => {
+      logger.warn('websocket_protocol_error', { requestId: socket.requestId, userId: socket.userId || null });
+    });
 
     socket.on('pong', () => {
       socket.isAlive = true;
@@ -485,6 +501,7 @@ function attachGateway(server, {
 
   wss.on('close', () => {
     clearInterval(heartbeat);
+    clearInterval(rateCleanup);
     unsubscribeGroupUpdates();
     wss.clients.forEach((socket) => {
       clearTimeout(socket.pongTimeout);

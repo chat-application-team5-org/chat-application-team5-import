@@ -467,3 +467,34 @@ test('CA-26/CA-31: escaped messages and current membership across REST and WebSo
   expect((await removedSend).code).toBe('FORBIDDEN_NOT_MEMBER');
   expect(await Message.countDocuments({ conversation: groupId, clientMsgId: 'removed-send' })).toBe(0);
 });
+
+test('CA-42: real messages share a per-user rate limit across sockets', async () => {
+  const users = [];
+  for (const username of ['rateowner', 'raterecipient']) {
+    const registration = await requestJson('/api/auth/register', {
+      method: 'POST', body: { username, email: `${username}@example.com`, password: 'Secret123' },
+    });
+    expect(registration.response.status).toBe(201);
+    const login = await requestJson('/api/auth/login', { method: 'POST', body: { identifier: username, password: 'Secret123' } });
+    expect(login.response.status).toBe(200);
+    users.push({ id: registration.data.userId, token: login.data.token });
+  }
+  const [sender, recipient] = users;
+  const opened = await requestJson('/api/conversations', {
+    method: 'POST', token: sender.token, body: { participantId: recipient.id },
+  });
+  const conversationId = String(opened.data.conversation._id);
+  const first = await connectSocket(sender.token);
+  const second = await connectSocket(sender.token);
+  for (let i = 0; i < 20; i += 1) {
+    const socket = i % 2 ? first : second;
+    const clientMsgId = `rate-real-${i}`;
+    const sent = nextEvent(socket, 'message:status', (p) => p.clientMsgId === clientMsgId);
+    socket.send(JSON.stringify({ type: 'message:send', payload: { conversationId, content: 'rate test', clientMsgId } }));
+    expect((await sent).status).toBe('SENT');
+  }
+  const blocked = nextEvent(first, 'error', (p) => p.clientMsgId === 'rate-real-blocked');
+  first.send(JSON.stringify({ type: 'message:send', payload: { conversationId, content: 'blocked', clientMsgId: 'rate-real-blocked' } }));
+  expect((await blocked).code).toBe('RATE_LIMITED');
+  expect(await Message.countDocuments({ conversation: conversationId, sender: sender.id })).toBe(20);
+});
