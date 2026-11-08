@@ -292,11 +292,16 @@ async function main() {
     ? Math.min(HISTORY_CONVERSATIONS, conversations.length)
     : conversations.length;
   for (let convIndex = 0; convIndex < historiesToMeasure; convIndex += 1) {
-    const sender = clients.find((client) => client.userIndex === convIndex * 2);
+    const senders = [0, 1].map((offset) =>
+      clients.find((client) => client.userIndex === convIndex * 2 + offset));
     for (let index = 0; index < 50; index += 1) {
-      await sendOne(sender, 'warmup', true);
+      // Two distinct users can each send 20 messages per 10-second window.
+      if (index === 40) await delay(10100);
+      await sendOne(senders[index % 2], 'warmup', true);
     }
   }
+  // Start measurements after warmup attempts have left the rate-limit window.
+  if (historiesToMeasure > 0) await delay(10100);
 
   loadActive = true;
   clients.forEach((client) => sendOne(client, 'load'));
