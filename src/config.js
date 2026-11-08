@@ -7,4 +7,7 @@ module.exports = {
   jwtSecret: process.env.JWT_SECRET || '',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
   allowedOrigin: process.env.ALLOWED_ORIGIN || 'http://localhost:3000',
+  environment: process.env.NODE_ENV || 'development',
+  tlsKeyPath: process.env.TLS_KEY_PATH || '',
+  tlsCertPath: process.env.TLS_CERT_PATH || '',
 };
