@@ -664,6 +664,9 @@ describe('Read receipts (CA-37)', () => {
       expect(markMessagesRead).toHaveBeenCalledWith({
         readerId: 'bob', conversationId: 'conversation-1', messageIds: ['m-read-1'],
       });
+      await expect(waitFor(bob, 'message:read:processed')).resolves.toMatchObject({
+        payload: { conversationId: 'conversation-1' },
+      });
     } finally {
       alice.close();
       bob.close();

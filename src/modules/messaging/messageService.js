@@ -134,9 +134,10 @@ async function markMessageDelivered({ recipientId, messageId }) {
 
 // CA-37: A recipient marks messages as read only after opening the conversation.
 async function markMessagesRead({ readerId, conversationId, messageIds }) {
-  if (!mongoose.isValidObjectId(conversationId) || !Array.isArray(messageIds) ||
-      messageIds.length === 0 || messageIds.some((id) => !mongoose.isValidObjectId(id))) {
-    throw new AppError(400, 'VALIDATION_ERROR', 'A valid conversationId and messageIds are required.');
+  if (!mongoose.isValidObjectId(conversationId) ||
+      (messageIds !== undefined && (!Array.isArray(messageIds) ||
+      messageIds.length === 0 || messageIds.some((id) => !mongoose.isValidObjectId(id))))) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'A valid conversationId and optional messageIds are required.');
   }
 
   const conversation = await Conversation.findById(conversationId);
@@ -146,29 +147,30 @@ async function markMessagesRead({ readerId, conversationId, messageIds }) {
   const isMember = conversation.participants.some((id) => String(id) === reader);
   if (!isMember) throw new AppError(403, 'FORBIDDEN_NOT_MEMBER', 'You are not part of this conversation.');
 
-  const uniqueIds = [...new Set(messageIds.map(String))];
-  const changed = await Message.updateMany(
-    {
-      _id: { $in: uniqueIds },
-      conversation: conversation._id,
-      sender: { $ne: readerId },
-      status: { $in: ['SENT', 'DELIVERED', 'READ'] },
-      readBy: { $ne: readerId },
-    },
-    { $set: { status: 'READ' }, $addToSet: { readBy: readerId } }
-  );
-
-  const messages = await Message.find({
-    _id: { $in: uniqueIds },
+  const filter = {
     conversation: conversation._id,
     sender: { $ne: readerId },
-    status: 'READ',
-    readBy: readerId,
-  }).select('_id sender clientMsgId status');
+    status: { $in: ['SENT', 'DELIVERED', 'READ'] },
+    readBy: { $ne: readerId },
+  };
+  if (messageIds !== undefined) filter._id = { $in: [...new Set(messageIds.map(String))] };
+
+  // Read eligible IDs first, then conditionally update each one. Returning the
+  // updated documents makes the receipt list exact, even when acknowledgements
+  // for the same conversation arrive concurrently from multiple tabs.
+  const candidates = await Message.find(filter).select('_id');
+  const updatedMessages = await Promise.all(candidates.map(({ _id }) => (
+    Message.findOneAndUpdate(
+      { ...filter, _id },
+      { $set: { status: 'READ' }, $addToSet: { readBy: readerId } },
+      { new: true }
+    ).select('_id sender clientMsgId status')
+  )));
+  const messages = updatedMessages.filter(Boolean);
 
   return {
     messages,
-    newlyRead: changed.modifiedCount ?? changed.nModified ?? 0,
+    newlyRead: messages.length,
   };
 }
 

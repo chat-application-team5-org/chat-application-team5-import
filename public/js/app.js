@@ -145,22 +145,57 @@
     return li;
   }
 
-  async function loadConversations() {
+  let conversationCache = [];
+  let conversationLoadId = 0;
+
+  function renderConversationList(conversations) {
     const list = $('conversation-list');
     list.replaceChildren();
+    if (!conversations.length) {
+      list.appendChild(emptyItem('No conversations yet'));
+      return;
+    }
+    conversations.forEach((conversation) => list.appendChild(convItem(conversation)));
+  }
+
+  async function loadConversations() {
+    const loadId = ++conversationLoadId;
 
     try {
       const convs = await api.listConversations();
+      if (loadId !== conversationLoadId) return;
 
-      if (!convs.length) {
-        list.appendChild(emptyItem('No conversations yet'));
-        return;
-      }
+      conversationCache = convs.map((conversation) => (
+        isCurrentConversationOpen(conversation.conversationId)
+          ? { ...conversation, unreadCount: 0 }
+          : conversation
+      ));
+      updateUnreadTitle();
 
-      convs.forEach((c) => list.appendChild(convItem(c)));
+      if (!$('search-input').value.trim()) renderConversationList(conversationCache);
     } catch {
-      list.appendChild(emptyItem('No conversations yet'));
+      if (loadId === conversationLoadId && !$('search-input').value.trim()) {
+        $('conversation-list').replaceChildren(emptyItem('No conversations yet'));
+      }
     }
+  }
+
+  function updateUnreadTitle() {
+    const total = conversationCache.reduce(
+      (sum, conversation) => sum + (Number(conversation.unreadCount) || 0),
+      0
+    );
+    Chat.unread.updateTitle(total);
+  }
+
+  function setConversationUnreadCount(conversationId, unreadCount) {
+    conversationCache = conversationCache.map((conversation) => (
+      conversation.conversationId === conversationId
+        ? { ...conversation, unreadCount }
+        : conversation
+    ));
+    updateUnreadTitle();
+    if (!$('search-input').value.trim()) renderConversationList(conversationCache);
   }
 
   function convItem(c) {
@@ -213,6 +248,14 @@
 
   Chat.names = {};
 
+  function isCurrentConversationOpen(conversationId) {
+    return Boolean(
+      currentConversation &&
+      $('chat-view').dataset.pane === 'chat' &&
+      (!conversationId || currentConversation.conversationId === conversationId)
+    );
+  }
+
   function acknowledgeRead(messages, conversationId) {
     if (Chat.mock.enabled || !Array.isArray(messages)) return;
     const userId = (api.session.user || {}).userId;
@@ -225,6 +268,10 @@
     }
   }
 
+  function acknowledgeConversationRead(conversationId) {
+    if (!Chat.mock.enabled) ws.send('message:read', { conversationId });
+  }
+
   async function openConversation(c) {
     if (remoteTypingTimeout) {
       clearTimeout(remoteTypingTimeout);
@@ -233,6 +280,9 @@
 
     $('typing-indicator').textContent = '';
     currentConversation = c;
+    c.unreadCount = 0;
+    setConversationUnreadCount(c.conversationId, 0);
+    acknowledgeConversationRead(c.conversationId);
 
     historyState = {
       conversationId: c.conversationId,
@@ -278,8 +328,6 @@
           c.conversationId,
           res.messages || []
         );
-        acknowledgeRead(res.messages || [], c.conversationId);
-
         historyState.hasMore = Boolean(res.hasMore);
         historyState.nextCursor = res.nextCursor || null;
       }
@@ -323,7 +371,6 @@
       }
 
       Chat.messages.prepend(res.messages || []);
-      acknowledgeRead(res.messages || [], conversation.conversationId);
 
       state.hasMore = Boolean(res.hasMore);
       state.nextCursor = res.nextCursor || null;
@@ -438,6 +485,7 @@
     if (Chat.mock.enabled || !currentConversation) return;
 
     const conversationId = currentConversation.conversationId;
+    acknowledgeConversationRead(conversationId);
     const lastMessageId = Chat.messages.lastMessageId();
 
     try {
@@ -486,6 +534,9 @@
 
     const normalized = api.normalize.message(message);
     const shown = Chat.messages.add(normalized);
+    const openConversationId = isCurrentConversationOpen()
+      ? currentConversation.conversationId
+      : null;
 
     const messageId = message.messageId || message._id;
 
@@ -495,9 +546,24 @@
       });
     }
 
-    if (shown && currentConversation) {
+    if (shown && openConversationId === normalized.conversationId) {
       acknowledgeRead([normalized], currentConversation.conversationId);
+    } else {
+      const conversation = conversationCache.find(
+        (item) => item.conversationId === normalized.conversationId
+      );
+      Chat.unread.notifyIncoming(
+        normalized,
+        openConversationId,
+        conversation && conversation.name,
+        ui.toast
+      );
+      void loadConversations();
     }
+  });
+
+  ws.on('message:read:processed', (payload) => {
+    if (payload && payload.conversationId) void loadConversations();
   });
 
   ws.on('message:status', (p) => {
@@ -601,8 +667,6 @@
     }
   });
 
-  // TODO CA-38: unread badge for messages in other conversations.
-  
   // CA-39: Search users and start private conversations.
   const searchInput = $('search-input');
   let searchTimeout = null;

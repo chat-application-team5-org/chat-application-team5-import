@@ -304,6 +304,13 @@ function attachGateway(server, {
           send(senderSocket, 'message:status', status);
         });
       });
+
+      const readConfirmation = {
+        conversationId: String(payload.conversationId),
+      };
+      (online.get(String(socket.userId)) || []).forEach((readerSocket) => {
+        send(readerSocket, 'message:read:processed', readConfirmation);
+      });
     } catch (err) {
       const known = Boolean(err.status && err.status < 500);
       logger.error('websocket_read_ack_failed', {
