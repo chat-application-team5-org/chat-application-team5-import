@@ -90,6 +90,23 @@ router.get('/', async (req, res, next) => {
       .populate('participants', 'username')
       .sort({ updatedAt: -1 });
 
+    const unreadRows = records.length && mongoose.isValidObjectId(req.userId)
+      ? await Message.aggregate([
+        {
+          $match: {
+            conversation: { $in: records.map((conversation) => conversation._id) },
+            sender: { $ne: new mongoose.Types.ObjectId(req.userId) },
+            readBy: { $ne: new mongoose.Types.ObjectId(req.userId) },
+            status: { $in: ['SENT', 'DELIVERED', 'READ'] },
+          },
+        },
+        { $group: { _id: '$conversation', count: { $sum: 1 } } },
+      ])
+      : [];
+    const unreadCounts = new Map(
+      unreadRows.map((row) => [String(row._id), row.count])
+    );
+
     const conversations = records.map((conversation) => {
       const isGroup = conversation.type === 'group';
 
@@ -106,7 +123,7 @@ router.get('/', async (req, res, next) => {
             ? otherParticipant.username
             : 'Private conversation'),
         lastMessage: '',
-        unreadCount: 0,
+        unreadCount: unreadCounts.get(String(conversation._id)) || 0,
       };
     });
 

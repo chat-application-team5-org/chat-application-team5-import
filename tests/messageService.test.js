@@ -9,7 +9,7 @@ jest.mock('../src/models/Message', () => ({
   find: jest.fn(),
   findById: jest.fn(),
   updateOne: jest.fn(),
-  updateMany: jest.fn(),
+  findOneAndUpdate: jest.fn(),
 }));
 
 const Conversation = require('../src/models/Conversation');
@@ -262,21 +262,32 @@ describe('markMessageDelivered (CA-24)', () => {
 
 
 describe('markMessagesRead (CA-37)', () => {
-  it('marks only incoming messages in a conversation as read for a member', async () => {
+  it('marks incoming messages as read and returns only the messages changed by this acknowledgement', async () => {
     const ids = [String(oid()), String(oid())];
-    Message.updateMany.mockResolvedValue({ modifiedCount: 2 });
+    const returned = ids.map((_id) => ({
+      _id, sender, clientMsgId: 'client-1', status: 'READ',
+    }));
     Message.find.mockReturnValue({
-      select: jest.fn().mockResolvedValue(ids.map((_id) => ({
-        _id, sender, clientMsgId: 'client-1', status: 'READ',
-      }))),
+      select: jest.fn().mockResolvedValue(ids.map((_id) => ({ _id }))),
     });
+    Message.findOneAndUpdate.mockImplementation((filter) => ({
+      select: jest.fn().mockResolvedValue(returned.find((message) => message._id === filter._id)),
+    }));
 
     const result = await markMessagesRead({
       readerId: other, conversationId: String(convId), messageIds: ids,
     });
 
-    expect(Message.updateMany).toHaveBeenCalledWith({
+    expect(Message.find).toHaveBeenCalledWith({
       _id: { $in: ids },
+      conversation: convId,
+      sender: { $ne: other },
+      status: { $in: ['SENT', 'DELIVERED', 'READ'] },
+      readBy: { $ne: other },
+    });
+    expect(Message.findOneAndUpdate).toHaveBeenCalledTimes(2);
+    expect(Message.findOneAndUpdate).toHaveBeenNthCalledWith(1, {
+      _id: ids[0],
       conversation: convId,
       sender: { $ne: other },
       status: { $in: ['SENT', 'DELIVERED', 'READ'] },
@@ -284,16 +295,78 @@ describe('markMessagesRead (CA-37)', () => {
     }, {
       $set: { status: 'READ' },
       $addToSet: { readBy: other },
-    });
+    }, { new: true });
     expect(result.newlyRead).toBe(2);
     expect(result.messages).toHaveLength(2);
+    expect(result.messages.every((message) => message.status === 'READ')).toBe(true);
+  });
+
+  it('repeating an acknowledgement returns no newly read messages', async () => {
+    const messageId = String(oid());
+    Message.find
+      .mockReturnValueOnce({ select: jest.fn().mockResolvedValue([{ _id: messageId }]) })
+      .mockReturnValueOnce({ select: jest.fn().mockResolvedValue([]) });
+    Message.findOneAndUpdate.mockReturnValue({
+      select: jest.fn().mockResolvedValue({
+        _id: messageId, sender, clientMsgId: 'client-1', status: 'READ',
+      }),
+    });
+
+    const first = await markMessagesRead({
+      readerId: other,
+      conversationId: String(convId),
+      messageIds: [messageId],
+    });
+    const repeated = await markMessagesRead({
+      readerId: other,
+      conversationId: String(convId),
+      messageIds: [messageId],
+    });
+
+    expect(first.messages).toHaveLength(1);
+    expect(first.newlyRead).toBe(1);
+    expect(repeated.messages).toEqual([]);
+    expect(repeated.newlyRead).toBe(0);
+    expect(Message.findOneAndUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks all unread incoming messages in only the opened conversation', async () => {
+    const ids = [String(oid()), String(oid()), String(oid())];
+    Message.find.mockReturnValue({
+      select: jest.fn().mockResolvedValue(ids.map((_id) => ({ _id }))),
+    });
+    Message.findOneAndUpdate.mockImplementation((filter) => ({
+      select: jest.fn().mockResolvedValue({
+        _id: filter._id, sender, clientMsgId: 'client-1', status: 'READ',
+      }),
+    }));
+
+    const result = await markMessagesRead({
+      readerId: other,
+      conversationId: String(convId),
+    });
+
+    expect(Message.find).toHaveBeenCalledWith({
+      conversation: convId,
+      sender: { $ne: other },
+      status: { $in: ['SENT', 'DELIVERED', 'READ'] },
+      readBy: { $ne: other },
+    });
+    expect(Message.findOneAndUpdate).toHaveBeenCalledTimes(3);
+    Message.findOneAndUpdate.mock.calls.forEach(([filter]) => {
+      expect(filter.conversation).toEqual(convId);
+      expect(filter.sender).toEqual({ $ne: other });
+    });
+    expect(result.messages).toHaveLength(3);
+    expect(result.newlyRead).toBe(3);
   });
 
   it('rejects a non-member and does not update messages', async () => {
     await expect(markMessagesRead({
       readerId: oid(), conversationId: String(convId), messageIds: [String(oid())],
     })).rejects.toMatchObject({ code: 'FORBIDDEN_NOT_MEMBER' });
-    expect(Message.updateMany).not.toHaveBeenCalled();
+    expect(Message.find).not.toHaveBeenCalled();
+    expect(Message.findOneAndUpdate).not.toHaveBeenCalled();
   });
 
   it('validates conversation and message identifiers', async () => {

@@ -8,7 +8,7 @@ jest.mock('../src/models/Conversation', () => ({
   find: jest.fn(),
   findById: jest.fn(),
 }));
-jest.mock('../src/models/Message', () => ({ find: jest.fn() }));
+jest.mock('../src/models/Message', () => ({ find: jest.fn(), aggregate: jest.fn() }));
 jest.mock('../src/modules/messaging/conversationService', () => ({
   getOrCreatePrivateConversation: jest.fn(),
 }));
@@ -43,6 +43,7 @@ function historyConversation(participants = [callerId, participantId]) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  Message.aggregate.mockResolvedValue([]);
 });
 
 describe('conversation listing and creation routes', () => {
@@ -81,6 +82,34 @@ describe('conversation listing and creation routes', () => {
     ]);
     expect(Conversation.find).toHaveBeenCalledWith({ participants: callerId });
     expect(query.sort).toHaveBeenCalledWith({ updatedAt: -1 });
+  });
+
+  it('counts unread incoming messages in private and group conversations', async () => {
+    const query = {
+      populate: jest.fn().mockReturnThis(),
+      sort: jest.fn().mockResolvedValue([
+        { _id: 'private-1', type: 'private', participants: [{ _id: callerId }, { _id: participantId, username: 'bob' }] },
+        { _id: 'group-1', type: 'group', name: 'Project Team', participants: [{ _id: callerId }, { _id: participantId, username: 'bob' }] },
+        { _id: 'private-2', type: 'private', participants: [{ _id: callerId }] },
+      ]),
+    };
+    Conversation.find.mockReturnValue(query);
+    Message.aggregate.mockResolvedValue([
+      { _id: 'private-1', count: 2 },
+      { _id: 'group-1', count: 4 },
+    ]);
+
+    const response = await request(app).get('/api/conversations').set('Authorization', bearer);
+
+    expect(response.status).toBe(200);
+    expect(response.body.map((conversation) => conversation.unreadCount)).toEqual([2, 4, 0]);
+    const [matchStage] = Message.aggregate.mock.calls[0][0];
+    expect(matchStage.$match).toEqual({
+      conversation: { $in: ['private-1', 'group-1', 'private-2'] },
+      sender: { $ne: new mongoose.Types.ObjectId(callerId) },
+      readBy: { $ne: new mongoose.Types.ObjectId(callerId) },
+      status: { $in: ['SENT', 'DELIVERED', 'READ'] },
+    });
   });
 
   it('returns recent messages oldest-first when creating a conversation', async () => {
