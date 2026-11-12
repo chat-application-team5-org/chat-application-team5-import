@@ -2,7 +2,7 @@
 
 **Project:** Real-Time Chat Application (Socket Programming) — Team 5  
 **Course:** Software Engineering mini-project  
-**Evidence snapshot:** 30 October 2026  
+**Evidence snapshot:** 11 November 2026
 **Repository:** https://github.com/chat-application-team5-org/chat-application-team5-import
 
 > This document consolidates the verification evidence currently recorded in the repository and the CA-45 measurements supplied during project work. It does not replace the SRS, SAD, or Test Plan. Do not describe an item as passed unless its evidence is recorded below.
@@ -47,9 +47,9 @@ Before recording, verify that the health endpoint reports the application is hea
 | Verification | Recorded result | Notes |
 |---|---|---|
 | Dependency installation | npm ci completed | Local install output also reported 9 dependency vulnerabilities (5 low, 1 moderate, 2 high, 1 critical); advisories still need triage |
-| Unit tests | 11 suites; 81 tests passed | Recorded run on 30 October 2026 |
+| Unit tests | 14 suites; 113 tests passed | Latest full test run recorded on 11 November 2026 |
 | MongoDB integration test | 1 suite; 1 test passed | Used a separate disposable test database |
-| Lint | Passed | Recorded run on 30 October 2026 |
+| Lint | Passed | Latest lint run recorded on 11 November 2026 |
 | git diff --check | Passed | Recorded run on 30 October 2026 |
 | Pull-request CI | Passed on PR #58 | PR #58 is a documentation update and was still awaiting review/merge at this evidence snapshot |
 
@@ -128,9 +128,12 @@ Target: approximately 3–4 minutes. Use demo-only accounts and a disposable dat
 2. **Two-user sign-in (20–30 seconds).** Open two separate browser profiles. Register or sign in as demo-only users Alice and Bob. Show their connected state if available.
 3. **Find a user and open a conversation (20–30 seconds).** In Alice's view, use user search to find Bob and open the private conversation.
 4. **Real-time message flow (30–40 seconds).** Send a short message from Alice and show it arrive in Bob's view. Point out the sender, time and status shown by the UI.
-5. **Persistence and history (20–30 seconds).** Refresh Bob's view, reopen the conversation and show the message remains in history. Scroll upward to demonstrate older history only if there are more than 50 messages available.
-6. **Offline delivery (30–40 seconds, if successfully rehearsed).** Disconnect Bob, send a message from Alice, reconnect Bob and show the pending message replay. Do not claim success if the live demo fails.
-7. **Verification evidence (20–30 seconds).** Show the successful CI status, the test summary, and the performance results. Clearly mention that the 2 GB and separate network-path checks remain pending unless new evidence has been added.
+5. **Group chat (20–30 seconds).** Create or open a group conversation, show multiple members, and send a message so the other group members receive it in real time.
+
+6. **Reconnect and message status (20–30 seconds).** Disconnect or refresh one user's client, reconnect, and show that the connection is restored. Demonstrate message status updates such as SENT and DELIVERED where available.
+7. **Persistence and history (20–30 seconds).** Refresh Bob's view, reopen the conversation and show the message remains in history. Scroll upward to demonstrate older history only if there are more than 50 messages available.
+8. **Offline delivery (30–40 seconds, if successfully rehearsed).** Disconnect Bob, send a message from Alice, reconnect Bob and show the pending message replay. Do not claim success if the live demo fails.
+9. **Verification evidence (20–30 seconds).** Show the successful CI status, the test summary, and the performance results. Clearly mention that the 2 GB and separate network-path checks remain pending unless new evidence has been added.
 
 ### One-minute fallback demo
 
@@ -147,6 +150,7 @@ If time is limited, follow the existing SPRINT1_DEMO.md guide: health endpoint, 
 - [ ] Confirm the demo video opens and plays; the README links to docs/Team5_Sprint1_Chat_Demo.mp4.mp4.
 - [ ] Check Jira/sprint statuses with the team; close only tasks whose acceptance criteria and evidence are complete.
 - [ ] Submit the repository link and required files using the faculty's official submission method.
+- [ ] Create and verify a database backup before the final demo; use a disposable demo database and confirm the backup can be restored if needed.
 
 ## 8. Team and contribution note
 
