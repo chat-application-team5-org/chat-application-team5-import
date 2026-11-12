@@ -6,7 +6,7 @@
 
 
 
-This document records the verification activities and evidence for CA-47: Reliability, backup/restore and usability verification, covering the applicable SAF-3, SAF-4 and quality attribute requirements.
+This document records the verification activities and evidence for CA-47: reliability, backup/restore and usability verification, covering the applicable SAF-3, SAF-4 and quality attribute requirements.
 
 
 
@@ -328,6 +328,10 @@ The automated gateway test suite completed successfully with no test failures.
 
 
 
+The successful tests included gateway connection and disconnection behaviour, typing updates, heartbeat handling, termination of unresponsive clients, offline presence broadcasting, group updates and read receipts.
+
+
+
 \### Result
 
 
@@ -336,69 +340,13 @@ The automated gateway test suite completed successfully with no test failures.
 
 
 
-The existing automated gateway reliability tests passed successfully. This provides verification evidence for gateway connection and disconnection behaviour covered by the test suite.
+The existing automated gateway reliability tests passed successfully. This provides verification evidence for gateway reliability and connection behaviour covered by the test suite.
 
 
 
 \---
 
 
-
-\## Evidence Summary
-
-
-
-| Test Case | Verification | Result |
-
-|---|---|---|
-
-| TC-SAF-01 | Database outage and recovery behaviour | PASS |
-
-| TC-SAF-02 | Database backup and restore | PASS |
-
-| TC-REL-01 | Automated gateway reliability tests | PASS |
-
-
-
-\## Remaining CA-47 Verification
-
-
-
-The following CA-47 checks remain to be completed:
-
-
-
-\- Extended reliability/soak verification with the required clients and network interruption conditions.
-
-\- `TC-USB-01` — Basic usability verification.
-
-\- `TC-PRS-04` — Related performance and reliability verification.
-
-\- Required browser compatibility and layout verification, including the specified browser and viewport conditions.
-
-
-
-\## Current Status
-
-
-
-\*\*CA-47 is partially completed.\*\*
-
-
-
-The following verification activities have been successfully completed:
-
-
-
-\- SAF-3 database outage and recovery verification.
-
-\- SAF-4 database backup and restore verification.
-
-\- Automated gateway reliability testing with 28 out of 28 tests passing.
-
-
-
-The remaining extended reliability, usability, performance-related, browser compatibility and layout checks must be completed before CA-47 can be marked as fully complete.
 
 \## TC-USB-01 — Basic Usability and Browser/Layout Verification
 
@@ -442,5 +390,75 @@ The following usability checks were completed:
 
 
 
-\*\*PASS\*\* — The basic user interface and navigation were successfully verified in Microsoft Edge. The Login and Register screens were accessible, readable and usable, including in a reduced browser window.
+\*\*PASS\*\*
+
+
+
+The basic user interface and navigation were successfully verified in Microsoft Edge. The Login and Register screens were accessible, readable and usable, including in a reduced browser window.
+
+
+
+\---
+
+
+
+\## Evidence Summary
+
+
+
+| Test Case | Verification | Result |
+
+|---|---|---|
+
+| TC-SAF-01 | Database outage and recovery behaviour | PASS |
+
+| TC-SAF-02 | Database backup and restore | PASS |
+
+| TC-REL-01 | Automated gateway reliability tests | PASS |
+
+| TC-USB-01 | Basic usability and browser/layout verification | PASS |
+
+
+
+\## Remaining CA-47 Verification
+
+
+
+The following CA-47 checks may still require completion depending on the specific acceptance criteria:
+
+
+
+\- Extended reliability or soak verification with the required clients and network interruption conditions.
+
+\- `TC-PRS-04` — Related performance and reliability verification.
+
+\- Any additional browser compatibility or viewport conditions specifically required by the CA-47 acceptance criteria.
+
+
+
+\## Current Status
+
+
+
+\*\*CA-47 is substantially completed, with the core database reliability, backup/restore, gateway reliability and basic usability checks successfully verified.\*\*
+
+
+
+The following verification activities have been completed successfully:
+
+
+
+\- SAF-3 database outage and recovery verification.
+
+\- SAF-4 database backup and restore verification.
+
+\- Automated gateway reliability testing with \*\*28 out of 28 tests passing\*\*.
+
+\- Basic usability verification in Microsoft Edge.
+
+\- Login/Register navigation and reduced-window layout verification.
+
+
+
+The remaining extended reliability and performance-related checks should be completed if they are explicitly required by the CA-47 acceptance criteria.
 
