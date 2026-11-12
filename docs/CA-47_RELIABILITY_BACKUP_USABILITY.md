@@ -1,4 +1,4 @@
-\# CA-47 — Reliability, Backup/Restore and Usability Verification
+\# CA-47 - Reliability, Backup/Restore and Usability Verification
 
 
 
@@ -34,7 +34,7 @@ CA-47 requires verification of:
 
 
 
-\## TC-SAF-02 — Database Backup and Restore Verification
+\## TC-SAF-02 - Database Backup and Restore Verification
 
 
 
@@ -170,7 +170,7 @@ The database backup and restore procedure was successfully verified. One documen
 
 
 
-\## TC-SAF-01 — Database Outage and Recovery Verification
+\## TC-SAF-01 - Database Outage and Recovery Verification
 
 
 
@@ -234,7 +234,7 @@ The application health endpoint was then checked. It reported:
 
 
 
-This confirmed that the application detected the database outage and safely reported an unavailable state rather than incorrectly reporting that the database was connected.
+This confirmed that the application detected the database outage and safely reported an unavailable state.
 
 
 
@@ -282,7 +282,7 @@ The application correctly reported database unavailability during the MongoDB ou
 
 
 
-\## TC-REL-01 — Gateway Reliability Test Verification
+\## TC-REL-01 - Gateway Reliability Test Verification
 
 
 
@@ -324,10 +324,6 @@ The test execution completed with the following result:
 
 
 
-The automated gateway test suite completed successfully with no test failures.
-
-
-
 The successful tests included gateway connection and disconnection behaviour, typing updates, heartbeat handling, termination of unresponsive clients, offline presence broadcasting, group updates and read receipts.
 
 
@@ -340,7 +336,7 @@ The successful tests included gateway connection and disconnection behaviour, ty
 
 
 
-The existing automated gateway reliability tests passed successfully. This provides verification evidence for gateway reliability and connection behaviour covered by the test suite.
+The automated gateway reliability tests passed successfully and provide verification evidence for gateway reliability and connection behaviour covered by the test suite.
 
 
 
@@ -348,7 +344,7 @@ The existing automated gateway reliability tests passed successfully. This provi
 
 
 
-\## TC-USB-01 — Basic Usability and Browser/Layout Verification
+\## TC-USB-01 - Basic Usability and Browser/Layout Verification
 
 
 
@@ -424,13 +420,13 @@ The basic user interface and navigation were successfully verified in Microsoft 
 
 
 
-The following CA-47 checks may still require completion depending on the specific acceptance criteria:
+The following checks may still require completion depending on the specific acceptance criteria:
 
 
 
 \- Extended reliability or soak verification with the required clients and network interruption conditions.
 
-\- `TC-PRS-04` — Related performance and reliability verification.
+\- TC-PRS-04 related performance and reliability verification.
 
 \- Any additional browser compatibility or viewport conditions specifically required by the CA-47 acceptance criteria.
 
@@ -440,7 +436,7 @@ The following CA-47 checks may still require completion depending on the specifi
 
 
 
-\*\*CA-47 is substantially completed, with the core database reliability, backup/restore, gateway reliability and basic usability checks successfully verified.\*\*
+\*\*CA-47 is substantially completed.\*\*
 
 
 
