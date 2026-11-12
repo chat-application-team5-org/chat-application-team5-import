@@ -1,8 +1,8 @@
-\# CA-47 - Reliability, Backup/Restore and Usability Verification
+# CA-47 - Reliability, Backup/Restore and Usability Verification
 
 
 
-\## Purpose
+## Purpose
 
 
 
@@ -10,7 +10,7 @@ This document records the verification activities and evidence for CA-47: reliab
 
 
 
-\## Test Scope
+## Test Scope
 
 
 
@@ -18,27 +18,27 @@ CA-47 requires verification of:
 
 
 
-\- Reliability during extended operation and network interruptions.
+- Reliability during extended operation and network interruptions.
 
-\- Database outage and recovery behaviour (SAF-3).
+- Database outage and recovery behaviour (SAF-3).
 
-\- Database backup and documented restore procedure (SAF-4).
+- Database backup and documented restore procedure (SAF-4).
 
-\- Basic usability verification.
+- Basic usability verification.
 
-\- Compatibility with the required browser and layout conditions.
-
-
-
-\---
+- Compatibility with the required browser and layout conditions.
 
 
 
-\## TC-SAF-02 - Database Backup and Restore Verification
+---
 
 
 
-\### Objective
+## TC-SAF-02 - Database Backup and Restore Verification
+
+
+
+### Objective
 
 
 
@@ -46,23 +46,23 @@ Verify that a MongoDB database backup can be created successfully and restored i
 
 
 
-\### Test Environment
+### Test Environment
 
 
 
-\- MongoDB local server: `127.0.0.1:27017`
+- MongoDB local server: `127.0.0.1:27017`
 
-\- Source database: `chatapp\_ca47\_test`
+- Source database: `chatapp\_ca47\_test`
 
-\- Restored database: `chatapp\_ca47\_restored`
+- Restored database: `chatapp\_ca47\_restored`
 
-\- MongoDB Database Tools: version `100.20.1`
+- MongoDB Database Tools: version `100.20.1`
 
-\- Test collection: `backup\_verification`
+- Test collection: `backup\_verification`
 
 
 
-\### Test Data
+### Test Data
 
 
 
@@ -70,17 +70,17 @@ A disposable source database was used for this verification. The `backup\_verifi
 
 
 
-\- Test case: `TC-SAF-02`
+- Test case: `TC-SAF-02`
 
-\- Purpose: `CA-47 backup and restore verification`
+- Purpose: `CA-47 backup and restore verification`
 
-\- Status: `backup-source`
+- Status: `backup-source`
 
-\- Created date: `2026-11-12`
+- Created date: `2026-11-12`
 
 
 
-\### Backup Procedure
+### Backup Procedure
 
 
 
@@ -96,11 +96,11 @@ The backup completed successfully and created the database backup files, includi
 
 
 
-\- `backup\_verification.bson`
+- `backup\_verification.bson`
 
-\- `backup\_verification.metadata.json`
+- `backup\_verification.metadata.json`
 
-\- `prelude.json`
+- `prelude.json`
 
 
 
@@ -108,7 +108,7 @@ The backup output confirmed that one document was dumped successfully.
 
 
 
-\### Restore Procedure
+### Restore Procedure
 
 
 
@@ -116,7 +116,7 @@ The backup was restored into a separate database using `mongorestore`:
 
 
 
-`mongorestore --uri="mongodb://127.0.0.1:27017" --nsFrom="chatapp\_ca47\_test.\*" --nsTo="chatapp\_ca47\_restored.\*" ".\\ca47\_backup"`
+`mongorestore --uri="mongodb://127.0.0.1:27017" --nsFrom="chatapp\_ca47\_test.*" --nsTo="chatapp\_ca47\_restored.*" ".\\ca47\_backup"`
 
 
 
@@ -124,17 +124,17 @@ The restore output confirmed:
 
 
 
-\- The collection metadata was read successfully.
+- The collection metadata was read successfully.
 
-\- The `backup\_verification` collection was restored successfully.
+- The `backup\_verification` collection was restored successfully.
 
-\- 1 document was restored.
+- 1 document was restored.
 
-\- 0 documents failed to restore.
+- 0 documents failed to restore.
 
 
 
-\### Restore Verification
+### Restore Verification
 
 
 
@@ -154,11 +154,11 @@ This confirms that the backup data was successfully restored into a separate dat
 
 
 
-\### Result
+### Result
 
 
 
-\*\*PASS\*\*
+**PASS**
 
 
 
@@ -166,15 +166,15 @@ The database backup and restore procedure was successfully verified. One documen
 
 
 
-\---
+---
 
 
 
-\## TC-SAF-01 - Database Outage and Recovery Verification
+## TC-SAF-01 - Database Outage and Recovery Verification
 
 
 
-\### Objective
+### Objective
 
 
 
@@ -182,19 +182,19 @@ Verify that the application safely reports database unavailability when MongoDB 
 
 
 
-\### Test Environment
+### Test Environment
 
 
 
-\- Application server: `http://localhost:3000`
+- Application server: `http://localhost:3000`
 
-\- MongoDB service: Windows MongoDB service
+- MongoDB service: Windows MongoDB service
 
-\- Health endpoint: `/health`
+- Health endpoint: `/health`
 
 
 
-\### Normal Operation Verification
+### Normal Operation Verification
 
 
 
@@ -210,7 +210,7 @@ This confirmed that the application was running and connected to MongoDB.
 
 
 
-\### Database Outage Verification
+### Database Outage Verification
 
 
 
@@ -238,7 +238,7 @@ This confirmed that the application detected the database outage and safely repo
 
 
 
-\### Recovery Verification
+### Recovery Verification
 
 
 
@@ -266,11 +266,11 @@ This confirmed that the application recovered its database connectivity after th
 
 
 
-\### Result
+### Result
 
 
 
-\*\*PASS\*\*
+**PASS**
 
 
 
@@ -278,15 +278,15 @@ The application correctly reported database unavailability during the MongoDB ou
 
 
 
-\---
+---
 
 
 
-\## TC-REL-01 - Gateway Reliability Test Verification
+## TC-REL-01 - Gateway Reliability Test Verification
 
 
 
-\### Objective
+### Objective
 
 
 
@@ -294,7 +294,7 @@ Verify the automated reliability checks implemented for the WebSocket gateway.
 
 
 
-\### Test Execution
+### Test Execution
 
 
 
@@ -306,7 +306,7 @@ The gateway test suite was executed using:
 
 
 
-\### Test Result
+### Test Result
 
 
 
@@ -314,13 +314,13 @@ The test execution completed with the following result:
 
 
 
-\- Test Suites: 1 passed, 1 total
+- Test Suites: 1 passed, 1 total
 
-\- Tests: 28 passed, 28 total
+- Tests: 28 passed, 28 total
 
-\- Snapshots: 0 total
+- Snapshots: 0 total
 
-\- Execution time: 21.943 seconds
+- Execution time: 21.943 seconds
 
 
 
@@ -328,11 +328,11 @@ The successful tests included gateway connection and disconnection behaviour, ty
 
 
 
-\### Result
+### Result
 
 
 
-\*\*PASS\*\*
+**PASS**
 
 
 
@@ -340,15 +340,15 @@ The automated gateway reliability tests passed successfully and provide verifica
 
 
 
-\---
+---
 
 
 
-\## TC-USB-01 - Basic Usability and Browser/Layout Verification
+## TC-USB-01 - Basic Usability and Browser/Layout Verification
 
 
 
-\### Objective
+### Objective
 
 
 
@@ -356,7 +356,7 @@ Verify that the Chat Application provides a clear and usable interface and that 
 
 
 
-\### Verification Performed
+### Verification Performed
 
 
 
@@ -368,25 +368,25 @@ The following usability checks were completed:
 
 
 
-\- The Login page loaded successfully.
+- The Login page loaded successfully.
 
-\- The Register page was accessible from the Login page.
+- The Register page was accessible from the Login page.
 
-\- Username, email and password input fields were clearly visible and usable.
+- Username, email and password input fields were clearly visible and usable.
 
-\- Login and Register buttons were clearly displayed.
+- Login and Register buttons were clearly displayed.
 
-\- Navigation between Login and Register screens worked correctly.
+- Navigation between Login and Register screens worked correctly.
 
-\- The application layout remained readable and usable when the browser window was reduced in size.
-
-
-
-\### Result
+- The application layout remained readable and usable when the browser window was reduced in size.
 
 
 
-\*\*PASS\*\*
+### Result
+
+
+
+**PASS**
 
 
 
@@ -394,11 +394,11 @@ The basic user interface and navigation were successfully verified in Microsoft 
 
 
 
-\---
+---
 
 
 
-\## Evidence Summary
+## Evidence Summary
 
 
 
@@ -416,7 +416,7 @@ The basic user interface and navigation were successfully verified in Microsoft 
 
 
 
-\## Remaining CA-47 Verification
+## Remaining CA-47 Verification
 
 
 
@@ -424,19 +424,19 @@ The following checks may still require completion depending on the specific acce
 
 
 
-\- Extended reliability or soak verification with the required clients and network interruption conditions.
+- Extended reliability or soak verification with the required clients and network interruption conditions.
 
-\- TC-PRS-04 related performance and reliability verification.
+- TC-PRS-04 related performance and reliability verification.
 
-\- Any additional browser compatibility or viewport conditions specifically required by the CA-47 acceptance criteria.
-
-
-
-\## Current Status
+- Any additional browser compatibility or viewport conditions specifically required by the CA-47 acceptance criteria.
 
 
 
-\*\*CA-47 is substantially completed.\*\*
+## Current Status
+
+
+
+**CA-47 is substantially completed.**
 
 
 
@@ -444,17 +444,18 @@ The following verification activities have been completed successfully:
 
 
 
-\- SAF-3 database outage and recovery verification.
+- SAF-3 database outage and recovery verification.
 
-\- SAF-4 database backup and restore verification.
+- SAF-4 database backup and restore verification.
 
-\- Automated gateway reliability testing with \*\*28 out of 28 tests passing\*\*.
+- Automated gateway reliability testing with **28 out of 28 tests passing**.
 
-\- Basic usability verification in Microsoft Edge.
+- Basic usability verification in Microsoft Edge.
 
-\- Login/Register navigation and reduced-window layout verification.
+- Login/Register navigation and reduced-window layout verification.
 
 
 
 The remaining extended reliability and performance-related checks should be completed if they are explicitly required by the CA-47 acceptance criteria.
+
 
