@@ -30,6 +30,10 @@ CA-47 requires verification of:
 
 
 
+\---
+
+
+
 \## TC-SAF-02 — Database Backup and Restore Verification
 
 
@@ -62,7 +66,7 @@ Verify that a MongoDB database backup can be created successfully and restored i
 
 
 
-A disposable source database was used for this verification. The `backup\_verification` collection contained one test document with the following verification information:
+A disposable source database was used for this verification. The `backup\_verification` collection contained one test document with the following values:
 
 
 
@@ -80,7 +84,27 @@ A disposable source database was used for this verification. The `backup\_verifi
 
 
 
-A MongoDB backup was created from the disposable source database using `mongodump`. The backup completed successfully and produced the collection BSON data and metadata files.
+The MongoDB backup was created using `mongodump`:
+
+
+
+`mongodump --uri="mongodb://127.0.0.1:27017" --db="chatapp\_ca47\_test" --out=".\\ca47\_backup"`
+
+
+
+The backup completed successfully and created the database backup files, including:
+
+
+
+\- `backup\_verification.bson`
+
+\- `backup\_verification.metadata.json`
+
+\- `prelude.json`
+
+
+
+The backup output confirmed that one document was dumped successfully.
 
 
 
@@ -88,19 +112,61 @@ A MongoDB backup was created from the disposable source database using `mongodum
 
 
 
-The backup was restored into the separate database `chatapp\_ca47\_restored` using `mongorestore`. The restore completed successfully with one document restored and zero failures.
+The backup was restored into a separate database using `mongorestore`:
 
 
 
-\### Verification Result
+`mongorestore --uri="mongodb://127.0.0.1:27017" --nsFrom="chatapp\_ca47\_test.\*" --nsTo="chatapp\_ca47\_restored.\*" ".\\ca47\_backup"`
 
 
 
-MongoDB Compass was used to verify the restored database. The database `chatapp\_ca47\_restored` contained the `backup\_verification` collection with the same test document as the source database.
+The restore output confirmed:
 
 
 
-\*\*Result: PASS\*\*
+\- The collection metadata was read successfully.
+
+\- The `backup\_verification` collection was restored successfully.
+
+\- 1 document was restored.
+
+\- 0 documents failed to restore.
+
+
+
+\### Restore Verification
+
+
+
+MongoDB Compass was used to verify both databases.
+
+
+
+The source database, `chatapp\_ca47\_test`, contained the original `backup\_verification` document.
+
+
+
+The restored database, `chatapp\_ca47\_restored`, also contained the same document with the same test data.
+
+
+
+This confirms that the backup data was successfully restored into a separate database.
+
+
+
+\### Result
+
+
+
+\*\*PASS\*\*
+
+
+
+The database backup and restore procedure was successfully verified. One document was backed up and restored successfully with no restore failures.
+
+
+
+\---
 
 
 
@@ -112,7 +178,7 @@ MongoDB Compass was used to verify the restored database. The database `chatapp\
 
 
 
-Verify that the running application correctly detects a MongoDB outage and reports recovery after the database service becomes available again.
+Verify that the application safely reports database unavailability when MongoDB becomes unavailable and recovers when the database service is restored.
 
 
 
@@ -120,41 +186,177 @@ Verify that the running application correctly detects a MongoDB outage and repor
 
 
 
-\- Chat application running locally on port `3000`
+\- Application server: `http://localhost:3000`
 
-\- MongoDB local Windows service
+\- MongoDB service: Windows MongoDB service
 
-\- Database: `chatapp\_ca47\_test`
-
-\- Health endpoint: `http://localhost:3000/health`
+\- Health endpoint: `/health`
 
 
 
-\### Test Procedure and Results
+\### Normal Operation Verification
 
 
 
-1\. \*\*Healthy baseline:\*\* With MongoDB running, the health endpoint returned a successful response with `db` reported as `connected`.
+Before the database outage, the health endpoint returned:
 
 
 
-2\. \*\*Database outage:\*\* The MongoDB Windows service was stopped while the chat application remained running. The health endpoint returned HTTP `503` with `status` reported as `unavailable` and `db` reported as `disconnected`.
+`{"status":"ok","uptime":66.7033659,"db":"connected"}`
 
 
 
-3\. \*\*Recovery:\*\* The MongoDB service was restarted without restarting the chat application. The health endpoint subsequently returned a successful response with `db` reported as `connected`.
+This confirmed that the application was running and connected to MongoDB.
 
 
 
-\### Verification Result
+\### Database Outage Verification
 
 
 
-The running application correctly detected the database outage and subsequently returned to a connected state after the MongoDB service was restarted.
+The MongoDB service was stopped.
 
 
 
-\*\*Result: PASS\*\*
+The service status was verified as:
+
+
+
+`Stopped`
+
+
+
+The application health endpoint was then checked. It reported:
+
+
+
+`{"status":"unavailable","uptime":360.7397337,"db":"disconnected"}`
+
+
+
+This confirmed that the application detected the database outage and safely reported an unavailable state rather than incorrectly reporting that the database was connected.
+
+
+
+\### Recovery Verification
+
+
+
+The MongoDB service was restarted.
+
+
+
+The service status was verified as:
+
+
+
+`Running`
+
+
+
+The health endpoint was checked again and returned:
+
+
+
+`{"status":"ok","uptime":447.4316621,"db":"connected"}`
+
+
+
+This confirmed that the application recovered its database connectivity after the MongoDB service was restored.
+
+
+
+\### Result
+
+
+
+\*\*PASS\*\*
+
+
+
+The application correctly reported database unavailability during the MongoDB outage and returned to a connected state after the database service was restarted.
+
+
+
+\---
+
+
+
+\## TC-REL-01 — Gateway Reliability Test Verification
+
+
+
+\### Objective
+
+
+
+Verify the automated reliability checks implemented for the WebSocket gateway.
+
+
+
+\### Test Execution
+
+
+
+The gateway test suite was executed using:
+
+
+
+`npm.cmd test -- tests/gateway.test.js`
+
+
+
+\### Test Result
+
+
+
+The test execution completed with the following result:
+
+
+
+\- Test Suites: 1 passed, 1 total
+
+\- Tests: 28 passed, 28 total
+
+\- Snapshots: 0 total
+
+\- Execution time: 21.943 seconds
+
+
+
+The automated gateway test suite completed successfully with no test failures.
+
+
+
+\### Result
+
+
+
+\*\*PASS\*\*
+
+
+
+The existing automated gateway reliability tests passed successfully. This provides verification evidence for gateway connection and disconnection behaviour covered by the test suite.
+
+
+
+\---
+
+
+
+\## Evidence Summary
+
+
+
+| Test Case | Verification | Result |
+
+|---|---|---|
+
+| TC-SAF-01 | Database outage and recovery behaviour | PASS |
+
+| TC-SAF-02 | Database backup and restore | PASS |
+
+| TC-REL-01 | Automated gateway reliability tests | PASS |
 
 
 
@@ -166,13 +368,13 @@ The following CA-47 checks remain to be completed:
 
 
 
-\- `TC-REL-01` — Reliability during extended operation and network interruptions.
+\- Extended reliability/soak verification with the required clients and network interruption conditions.
 
 \- `TC-USB-01` — Basic usability verification.
 
 \- `TC-PRS-04` — Related performance and reliability verification.
 
-\- Required browser compatibility and layout verification.
+\- Required browser compatibility and layout verification, including the specified browser and viewport conditions.
 
 
 
@@ -180,5 +382,65 @@ The following CA-47 checks remain to be completed:
 
 
 
-\*\*CA-47 is partially completed.\*\* The SAF-4 database backup and restore requirement and the SAF-3 database outage and recovery verification have been successfully completed. The remaining reliability and usability checks must be completed before CA-47 can be marked as fully done.
+\*\*CA-47 is partially completed.\*\*
+
+
+
+The following verification activities have been successfully completed:
+
+
+
+\- SAF-3 database outage and recovery verification.
+
+\- SAF-4 database backup and restore verification.
+
+\- Automated gateway reliability testing with 28 out of 28 tests passing.
+
+
+
+The remaining extended reliability, usability, performance-related, browser compatibility and layout checks must be completed before CA-47 can be marked as fully complete.
+
+\## TC-USB-01 — Basic Usability and Browser/Layout Verification
+
+
+
+\### Objective
+
+
+
+Verify that the Chat Application provides a clear and usable interface and that the required layout functions correctly in a supported browser.
+
+
+
+\### Verification Performed
+
+
+
+The application was opened successfully in Microsoft Edge at `http://localhost:3000`.
+
+
+
+The following usability checks were completed:
+
+
+
+\- The Login page loaded successfully.
+
+\- The Register page was accessible from the Login page.
+
+\- Username, email and password input fields were clearly visible and usable.
+
+\- Login and Register buttons were clearly displayed.
+
+\- Navigation between Login and Register screens worked correctly.
+
+\- The application layout remained readable and usable when the browser window was reduced in size.
+
+
+
+\### Result
+
+
+
+\*\*PASS\*\* — The basic user interface and navigation were successfully verified in Microsoft Edge. The Login and Register screens were accessible, readable and usable, including in a reduced browser window.
 
