@@ -16,7 +16,7 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       unique: true,
     },
-    passwordHash: {
+    displayName: { type: String, trim: true, maxlength: 40, default: '' },\n    statusMessage: { type: String, trim: true, maxlength: 100, default: '' },\n    passwordHash: {
       type: String,
       required: true,
     },
