@@ -32,7 +32,7 @@ const conversationSchema = new mongoose.Schema(
             return participants.length === 2;
           }
 
-          // Groups may shrink to two members when someone leaves.\n          return participants.length >= 2;
+          // Groups may shrink to two members when someone leaves.\n          // Existing groups can have one remaining member after a voluntary leave.\n          return participants.length >= 1;
         },
         message: 'A conversation has an invalid participant list.',
       },
