@@ -6,6 +6,7 @@ const { once } = require('node:events');
 const { performance } = require('node:perf_hooks');
 const os = require('node:os');
 const WebSocket = require('ws');
+const { createResourceSampler } = require('./performanceResources');
 
 const BASE_URL = (process.env.BASE_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
 const WS_URL = BASE_URL.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:') + '/ws';
@@ -26,6 +27,7 @@ const registrationTimes = [];
 const loginTimes = [];
 const historyTimes = [];
 let loadActive = false;
+let resourceSampler = null;
 let unexpectedCloses = 0;
 let skippedSends = 0;
 let sentSequence = 0;
@@ -308,6 +310,7 @@ async function main() {
   // Start measurements after warmup attempts have left the rate-limit window.
   if (historiesToMeasure > 0) await delay(10100);
 
+  resourceSampler = createResourceSampler();
   loadActive = true;
   clients.forEach((client) => sendOne(client, 'load'));
   const interval = setInterval(() => {
@@ -327,6 +330,8 @@ async function main() {
   clearInterval(interval);
   loadActive = false;
   await delay(5000);
+  const benchmarkHostUsage = resourceSampler.stop();
+  resourceSampler = null;
 
   for (let convIndex = 0; convIndex < historiesToMeasure; convIndex += 1) {
     const started = performance.now();
@@ -374,6 +379,7 @@ async function main() {
       processCpuUserMs: Number((processCpuUsed.user / 1000).toFixed(2)),
       processCpuSystemMs: Number((processCpuUsed.system / 1000).toFixed(2)),
     },
+    benchmarkHostUsage,
     baseUrl: BASE_URL,
     durationSeconds: DURATION_SECONDS,
     distinctUsers: USERS,
@@ -420,6 +426,7 @@ async function main() {
 }
 
 main().catch((error) => {
+  if (resourceSampler) resourceSampler.stop();
   activeSockets.forEach((socket) => socket.terminate());
   console.error('Performance test failed:', error.message);
   process.exitCode = 1;
