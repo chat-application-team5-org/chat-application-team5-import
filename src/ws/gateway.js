@@ -290,6 +290,9 @@ function attachGateway(server, {
         readerId: socket.userId,
         conversationId: payload.conversationId,
         messageIds: payload.messageIds,
+        ...(payload.lastReadMessageId
+          ? { lastReadMessageId: payload.lastReadMessageId }
+          : {}),
       });
 
       // Notify each original sender that their message has been read.
@@ -307,6 +310,9 @@ function attachGateway(server, {
 
       const readConfirmation = {
         conversationId: String(payload.conversationId),
+        ...(payload.lastReadMessageId
+          ? { lastReadMessageId: String(payload.lastReadMessageId) }
+          : {}),
       };
       (online.get(String(socket.userId)) || []).forEach((readerSocket) => {
         send(readerSocket, 'message:read:processed', readConfirmation);

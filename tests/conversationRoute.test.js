@@ -66,4 +66,24 @@ describe('private conversation API authorization (CA-21)', () => {
     expect(res.status).toBe(200);
     expect(getOrCreatePrivateConversation).toHaveBeenCalledWith(callerId, otherId);
   });
+
+  it('rejects an invalid participant ID on the documented create route', async () => {
+    const res = await request(app)
+      .post('/api/conversations')
+      .set('Authorization', bearer())
+      .send({ participantId: 'invalid-user-id' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(getOrCreatePrivateConversation).not.toHaveBeenCalled();
+  });
+
+  it('requires authentication on the documented create route', async () => {
+    const res = await request(app)
+      .post('/api/conversations')
+      .send({ participantId: otherId });
+
+    expect(res.status).toBe(401);
+    expect(getOrCreatePrivateConversation).not.toHaveBeenCalled();
+  });
 });

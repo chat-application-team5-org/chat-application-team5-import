@@ -1,10 +1,28 @@
 const mongoose = require('mongoose');
 
 const Conversation = require('../../models/Conversation');
+const ConversationMember = require('../../models/ConversationMember');
 const Message = require('../../models/Message');
 const { AppError } = require('../../middleware/errorHandler');
 const { sanitizeMessageContent } = require('./validation');
 const { assertConversationMember } = require('./authorization');
+
+const READ_ACK_BATCH_SIZE = 100;
+const readAckLocks = new Map();
+
+async function withReadAckLock(key, operation) {
+  const previous = readAckLocks.get(key) || Promise.resolve();
+  let release;
+  const current = new Promise((resolve) => { release = resolve; });
+  readAckLocks.set(key, current);
+  await previous;
+  try {
+    return await operation();
+  } finally {
+    release();
+    if (readAckLocks.get(key) === current) readAckLocks.delete(key);
+  }
+}
 
 // CA-27 / CA-30: persist first, then let the gateway acknowledge and broadcast.
 async function sendMessage({ senderId, conversationId, content, clientMsgId }) {
@@ -133,11 +151,16 @@ async function markMessageDelivered({ recipientId, messageId }) {
 }
 
 // CA-37: A recipient marks messages as read only after opening the conversation.
-async function markMessagesRead({ readerId, conversationId, messageIds }) {
-  if (!mongoose.isValidObjectId(conversationId) ||
-      (messageIds !== undefined && (!Array.isArray(messageIds) ||
-      messageIds.length === 0 || messageIds.some((id) => !mongoose.isValidObjectId(id))))) {
-    throw new AppError(400, 'VALIDATION_ERROR', 'A valid conversationId and optional messageIds are required.');
+async function markMessagesRead({ readerId, conversationId, messageIds, lastReadMessageId }) {
+  const hasMessageIds = messageIds !== undefined;
+  const hasReadPosition = lastReadMessageId !== undefined;
+  const invalidMessageIds = hasMessageIds && (
+    !Array.isArray(messageIds) || messageIds.length === 0 ||
+    messageIds.some((id) => !mongoose.isValidObjectId(id))
+  );
+  if (!mongoose.isValidObjectId(conversationId) || invalidMessageIds ||
+      (hasReadPosition && !mongoose.isValidObjectId(lastReadMessageId))) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'A valid conversationId and message IDs or read position are required.');
   }
 
   const conversation = await Conversation.findById(conversationId);
@@ -147,30 +170,84 @@ async function markMessagesRead({ readerId, conversationId, messageIds }) {
   const isMember = conversation.participants.some((id) => String(id) === reader);
   if (!isMember) throw new AppError(403, 'FORBIDDEN_NOT_MEMBER', 'You are not part of this conversation.');
 
+  const uniqueIds = hasMessageIds ? [...new Set(messageIds.map(String))] : [];
   const filter = {
     conversation: conversation._id,
     sender: { $ne: readerId },
     status: { $in: ['SENT', 'DELIVERED', 'READ'] },
     readBy: { $ne: readerId },
   };
-  if (messageIds !== undefined) filter._id = { $in: [...new Set(messageIds.map(String))] };
+  if (hasMessageIds) filter._id = { $in: uniqueIds };
+  if (hasReadPosition) {
+    const positionId = new mongoose.Types.ObjectId(lastReadMessageId);
+    const belongsToConversation = await Message.exists({
+      _id: positionId,
+      conversation: conversation._id,
+    });
+    if (!belongsToConversation) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'The read position must identify a message in this conversation.');
+    }
+    filter._id = hasMessageIds
+      ? { $in: uniqueIds, $lte: positionId }
+      : { $lte: positionId };
+  }
+  const lockKey = `${String(conversation._id)}:${reader}`;
+  const { messages, newlyRead } = await withReadAckLock(lockKey, async () => {
+    const newlyReadMessages = [];
+    let newlyReadCount = 0;
 
-  // Read eligible IDs first, then conditionally update each one. Returning the
-  // updated documents makes the receipt list exact, even when acknowledgements
-  // for the same conversation arrive concurrently from multiple tabs.
-  const candidates = await Message.find(filter).select('_id');
-  const updatedMessages = await Promise.all(candidates.map(({ _id }) => (
-    Message.findOneAndUpdate(
-      { ...filter, _id },
-      { $set: { status: 'READ' }, $addToSet: { readBy: readerId } },
-      { new: true }
-    ).select('_id sender clientMsgId status')
-  )));
-  const messages = updatedMessages.filter(Boolean);
+    while (true) {
+      const candidates = await Message.find(filter)
+        .select('_id sender clientMsgId status')
+        .sort({ _id: 1 })
+        .limit(READ_ACK_BATCH_SIZE)
+        .lean();
+      if (!candidates.length) break;
+
+      const result = await Message.bulkWrite(candidates.map(({ _id }) => ({
+        updateOne: {
+          filter: { ...filter, _id },
+          update: { $set: { status: 'READ' }, $addToSet: { readBy: readerId } },
+        },
+      })), { ordered: false });
+      const changed = result.modifiedCount ?? result.nModified ?? 0;
+      newlyReadCount += changed;
+
+      // This application runs as one server process (SAD 3.5). The keyed lock
+      // serializes same-member acknowledgements so candidates changed here are
+      // exactly the newly-read receipts to fan out to original senders.
+      if (changed === candidates.length) newlyReadMessages.push(...candidates);
+      if (changed < candidates.length) break;
+    }
+
+    return { messages: newlyReadMessages, newlyRead: newlyReadCount };
+  });
+
+  if (hasReadPosition) {
+    const latestReadMessageId = new mongoose.Types.ObjectId(lastReadMessageId);
+    const membership = {
+      conversation: conversation._id,
+      user: readerId,
+    };
+    const role = (conversation.memberRoles || []).find(
+      (member) => String(member.user) === reader
+    );
+    await ConversationMember.updateOne(
+      membership,
+      {
+        $max: { lastReadMessageId: latestReadMessageId },
+        $setOnInsert: {
+          joinedAt: new Date(),
+          ...(role ? { role: role.role } : {}),
+        },
+      },
+      { upsert: true }
+    );
+  }
 
   return {
     messages,
-    newlyRead: messages.length,
+    newlyRead,
   };
 }
 

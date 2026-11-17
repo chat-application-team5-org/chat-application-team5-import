@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 
 const Conversation = require('../../models/Conversation');
+const ConversationMember = require('../../models/ConversationMember');
 const Message = require('../../models/Message');
 
 const {
@@ -90,16 +91,32 @@ router.get('/', async (req, res, next) => {
       .populate('participants', 'username')
       .sort({ updatedAt: -1 });
 
-    const unreadRows = records.length && mongoose.isValidObjectId(req.userId)
+    const conversationIds = records.map((conversation) => conversation._id);
+    const memberRows = records.length
+      ? await ConversationMember.find({
+        conversation: { $in: conversationIds },
+        user: req.userId,
+      }).select('conversation lastReadMessageId').lean()
+      : [];
+    const readPositions = new Map(
+      memberRows.map((member) => [String(member.conversation), member.lastReadMessageId])
+    );
+    const hasValidUserId = mongoose.isValidObjectId(req.userId);
+    const unreadBranches = hasValidUserId ? records.map((conversation) => {
+      const branch = {
+        conversation: conversation._id,
+        sender: { $ne: new mongoose.Types.ObjectId(req.userId) },
+        status: { $in: ['SENT', 'DELIVERED', 'READ'] },
+        // CA-37 read receipts bridge records created before member cursors existed.
+        readBy: { $ne: new mongoose.Types.ObjectId(req.userId) },
+      };
+      const lastReadMessageId = readPositions.get(String(conversation._id));
+      if (lastReadMessageId) branch._id = { $gt: lastReadMessageId };
+      return branch;
+    }) : [];
+    const unreadRows = unreadBranches.length
       ? await Message.aggregate([
-        {
-          $match: {
-            conversation: { $in: records.map((conversation) => conversation._id) },
-            sender: { $ne: new mongoose.Types.ObjectId(req.userId) },
-            readBy: { $ne: new mongoose.Types.ObjectId(req.userId) },
-            status: { $in: ['SENT', 'DELIVERED', 'READ'] },
-          },
-        },
+        { $match: { $or: unreadBranches } },
         { $group: { _id: '$conversation', count: { $sum: 1 } } },
       ])
       : [];

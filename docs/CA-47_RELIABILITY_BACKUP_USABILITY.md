@@ -457,5 +457,3 @@ The following verification activities have been completed successfully:
 
 
 The remaining extended reliability and performance-related checks should be completed if they are explicitly required by the CA-47 acceptance criteria.
-
-
