@@ -195,6 +195,16 @@
     void loadConversations();
   });
 
+  function setConversationUnreadCount(conversationId, unreadCount) {
+    conversationCache = conversationCache.map((conversation) => (
+      conversation.conversationId === conversationId
+        ? { ...conversation, unreadCount }
+        : conversation
+    ));
+    Chat.unread.updateTitleFromConversations(conversationCache);
+    if (!$('search-input').value.trim()) renderConversationList(conversationCache);
+  }
+
   function convItem(c) {
     const li = document.createElement('li');
     li.className = 'conv';
@@ -245,6 +255,14 @@
 
   Chat.names = {};
 
+  function isCurrentConversationOpen(conversationId) {
+    return Boolean(
+      currentConversation &&
+      $('chat-view').dataset.pane === 'chat' &&
+      (!conversationId || currentConversation.conversationId === conversationId)
+    );
+  }
+
   function acknowledgeRead(messages, conversationId) {
     if (Chat.mock.enabled || !Array.isArray(messages)) return;
     const userId = (api.session.user || {}).userId;
@@ -272,6 +290,9 @@
 
     $('typing-indicator').textContent = '';
     currentConversation = c;
+    c.unreadCount = 0;
+    setConversationUnreadCount(c.conversationId, 0);
+    acknowledgeConversationRead(c.conversationId);
 
     historyState = {
       conversationId: c.conversationId,
@@ -477,6 +498,7 @@
     if (Chat.mock.enabled || !currentConversation) return;
 
     const conversationId = currentConversation.conversationId;
+    acknowledgeConversationRead(conversationId);
     const lastMessageId = Chat.messages.lastMessageId();
 
     try {
@@ -525,6 +547,9 @@
 
     const normalized = api.normalize.message(message);
     const shown = Chat.messages.add(normalized);
+    const openConversationId = isCurrentConversationOpen()
+      ? currentConversation.conversationId
+      : null;
 
     const messageId = message.messageId || message._id;
 

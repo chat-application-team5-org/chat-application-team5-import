@@ -158,8 +158,7 @@ async function markMessagesRead({ readerId, conversationId, messageIds, lastRead
     !Array.isArray(messageIds) || messageIds.length === 0 ||
     messageIds.some((id) => !mongoose.isValidObjectId(id))
   );
-  if (!mongoose.isValidObjectId(conversationId) ||
-      (!hasMessageIds && !hasReadPosition) || invalidMessageIds ||
+  if (!mongoose.isValidObjectId(conversationId) || invalidMessageIds ||
       (hasReadPosition && !mongoose.isValidObjectId(lastReadMessageId))) {
     throw new AppError(400, 'VALIDATION_ERROR', 'A valid conversationId and message IDs or read position are required.');
   }
@@ -218,6 +217,7 @@ async function markMessagesRead({ readerId, conversationId, messageIds, lastRead
       // serializes same-member acknowledgements so candidates changed here are
       // exactly the newly-read receipts to fan out to original senders.
       if (changed === candidates.length) newlyReadMessages.push(...candidates);
+      if (changed < candidates.length) break;
     }
 
     return { messages: newlyReadMessages, newlyRead: newlyReadCount };

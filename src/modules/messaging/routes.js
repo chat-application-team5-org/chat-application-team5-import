@@ -101,7 +101,8 @@ router.get('/', async (req, res, next) => {
     const readPositions = new Map(
       memberRows.map((member) => [String(member.conversation), member.lastReadMessageId])
     );
-    const unreadBranches = records.map((conversation) => {
+    const hasValidUserId = mongoose.isValidObjectId(req.userId);
+    const unreadBranches = hasValidUserId ? records.map((conversation) => {
       const branch = {
         conversation: conversation._id,
         sender: { $ne: new mongoose.Types.ObjectId(req.userId) },
@@ -112,7 +113,7 @@ router.get('/', async (req, res, next) => {
       const lastReadMessageId = readPositions.get(String(conversation._id));
       if (lastReadMessageId) branch._id = { $gt: lastReadMessageId };
       return branch;
-    });
+    }) : [];
     const unreadRows = unreadBranches.length
       ? await Message.aggregate([
         { $match: { $or: unreadBranches } },

@@ -341,6 +341,47 @@ describe('markMessagesRead (CA-37)', () => {
     }, { upsert: true });
   });
 
+  it('marks every unread incoming message in the conversation when IDs and cursor are omitted', async () => {
+    const incoming = [{ _id: oid() }, { _id: oid() }];
+    mockCandidateBatches([incoming, []]);
+
+    const result = await markMessagesRead({
+      readerId: other,
+      conversationId: String(convId),
+    });
+
+    expect(Message.find.mock.calls[0][0]).toEqual({
+      conversation: convId,
+      sender: { $ne: other },
+      status: { $in: ['SENT', 'DELIVERED', 'READ'] },
+      readBy: { $ne: other },
+    });
+    expect(result.messages).toHaveLength(2);
+    expect(result.newlyRead).toBe(2);
+    expect(ConversationMember.updateOne).not.toHaveBeenCalled();
+  });
+
+  it('keeps explicit CA-37 acknowledgements idempotent across repeated calls', async () => {
+    const messageId = oid();
+    mockCandidateBatches([[{ _id: messageId }], [], []]);
+
+    const first = await markMessagesRead({
+      readerId: other,
+      conversationId: String(convId),
+      messageIds: [String(messageId)],
+    });
+    const repeated = await markMessagesRead({
+      readerId: other,
+      conversationId: String(convId),
+      messageIds: [String(messageId)],
+    });
+
+    expect(first.messages).toHaveLength(1);
+    expect(first.newlyRead).toBe(1);
+    expect(repeated.messages).toEqual([]);
+    expect(repeated.newlyRead).toBe(0);
+  });
+
   it('updates large read ranges in bounded bulk batches', async () => {
     const boundary = oid();
     const firstBatch = Array.from({ length: 100 }, () => ({ _id: oid() }));
