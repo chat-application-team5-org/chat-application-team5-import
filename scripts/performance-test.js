@@ -249,6 +249,11 @@ function sendOne(client, phase, waitForDelivery = false) {
 }
 
 function assertOptions() {
+  if (process.env.PERF_ALLOW_WRITES !== '1') {
+    throw new Error(
+      'This benchmark creates users, conversations, and messages. Set PERF_ALLOW_WRITES=1 only when BASE_URL targets a disposable test database.'
+    );
+  }
   if (USERS < 2 || USERS % 2 !== 0) throw new Error('--users must be an even number of at least 2.');
   if (CLIENTS < USERS || CLIENTS % USERS !== 0) {
     throw new Error('--clients must be at least --users and evenly divisible by --users.');

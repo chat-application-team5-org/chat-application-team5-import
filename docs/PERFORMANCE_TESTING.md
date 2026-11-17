@@ -16,6 +16,8 @@ This procedure maps to the SRS performance requirements and Test Plan cases TC-P
 
 GitHub Actions runs `npm run perf:smoke` after starting the server against its own temporary MongoDB database. It uses 100 WebSocket connections for a short 15-second smoke test. This is a regression check; it does **not** replace the full 10-minute run on the target test machine.
 
+The benchmark writes users, conversations, and messages. It refuses to start unless `PERF_ALLOW_WRITES=1` is set. Set that flag only when the server uses a disposable database. The benchmark never drops a database and does not clean up its test records.
+
 ## Run the full 10-minute test on Windows
 
 1. Make sure Node.js 20+ and MongoDB are running.
@@ -24,6 +26,7 @@ GitHub Actions runs `npm run perf:smoke` after starting the server against its o
    ```powershell
    $env:MONGO_URI = "mongodb://127.0.0.1:27017/chatapp_perf_local"
    $env:JWT_SECRET = "local-performance-test-secret-change-me"
+   $env:ALLOWED_ORIGIN = "http://localhost:3000"
    npm start
    ```
 
@@ -33,7 +36,9 @@ GitHub Actions runs `npm run perf:smoke` after starting the server against its o
 
    ```powershell
    $env:BASE_URL = "http://127.0.0.1:3000"
+   $env:ALLOWED_ORIGIN = "http://localhost:3000"
    $env:PERF_LATENCY_TARGET_MS = "500"
+   $env:PERF_ALLOW_WRITES = "1"
    npm run perf:full
    ```
 
@@ -44,6 +49,18 @@ GitHub Actions runs `npm run perf:smoke` after starting the server against its o
 4. Save the final JSON output as project evidence and record the actual machine/RAM, run date, test target and outcome. Do not mark PERF-1 to PERF-4 as passed if the JSON report says a target failed.
 
 The test creates uniquely named accounts and persists messages in the configured database. It does not delete them automatically. When finished, stop the app, confirm the database is disposable, and remove that test database if desired.
+
+## Reproducible procedure by requirement
+
+| Requirement | How to run and what to record |
+|---|---|
+| PERF-1 — 95% within 500 ms on LAN / 1,000 ms on broadband | Run `npm run perf:full` separately from a client on the LAN and a client on the broadband path. Set `BASE_URL` to the server's LAN address for LAN evidence and its approved reachable test endpoint for broadband evidence. Set `PERF_LATENCY_TARGET_MS` to `500` for the LAN run and `1000` for the broadband run; set `ALLOWED_ORIGIN` on both server and runner to the same allowed Origin. The report's delivery latency starts immediately before the sender WebSocket write and ends at the first recipient `message:new` event. Save both JSON outputs and record network type, date, and client/server locations. Do not use `127.0.0.1`, `localhost`, or another loopback route as network-path evidence. For public network tests, use an approved TLS-protected test deployment and test-only credentials. |
+| PERF-2 — 100 connections without loss in the SRS 2 GB environment | Run the server and its disposable test database in the SRS 2 GB target environment. Prefer running the benchmark from a separate load-generator machine to avoid consuming the target server's limited RAM. Use the full command above (100 clients, 600 seconds). On Windows, capture `(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB` on the server; on a Linux server, capture `free -b` and the VM/container memory limit. Record the target server's actual limit/RAM; JSON `system.totalMemoryGiB` describes the benchmark process host, not a remote server. Require 100 clients, zero unexpected closes/skipped sends, zero missing acknowledgements, and zero missing recipient deliveries. |
+| PERF-3 — registration and login within 2 seconds | The full run records initial account registration/login requests and `AUTH_PROBES` extra probes during message load. Verify `registration.maxMs` and `login.maxMs` are each at most `2000`, with corresponding checks passing. |
+| PERF-4 — load 50 messages within 1 second | The full run primes each measured private conversation with at least 50 messages, then requests the latest 50. Verify `history50.p95Ms <= 1000`, `history50.samples > 0`, and that each response contains exactly 50 messages. The measured time includes the authenticated HTTP request. |
+| PERF-5 — page load within 3 seconds at 4 Mbps | In Chrome DevTools Network, disable cache and select a custom profile with 4 Mbps download and upload (record added latency). Reload the initial login page five times; record each Network `Finish` value and the maximum. Also time when the page is visibly usable (for example, the login form is ready) if acceptance means usable-page time; `Finish` alone is only a proxy. Save a screenshot or equivalent evidence. |
+
+The `perf:full` command is `node scripts/performance-test.js --duration=600 --users=20 --clients=100 --auth-probes=20`. `perf:smoke` is a short regression test, not evidence for the 10-minute or target-environment requirements. The benchmark defaults `BASE_URL` to localhost, so set it explicitly for every remote test.
 
 ## Manual PERF-5 browser check — completed 2026-10-30
 
