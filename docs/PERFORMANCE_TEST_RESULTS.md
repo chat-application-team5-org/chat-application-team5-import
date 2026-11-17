@@ -1,7 +1,7 @@
 # CA-45 Performance and Load Test Results
 
 **Date:** 2026-10-30  
-**Status:** Partially verified — PERF-5 measurements recorded; PERF-1 network-path validation and PERF-2 2 GB validation remain open  
+**Status:** Partially verified — PERF-3/4 measurements and PERF-5 Network Finish readings recorded; separate-path PERF-1 and 2 GB PERF-2 evidence remain open
 **Issue:** [#40 — Performance and load tests](https://github.com/chat-application-team5-org/chat-application-team5-import/issues/40)  
 **Branch:** `test/CA-45-perf5-chrome-results`
 
@@ -50,17 +50,17 @@ The 100-client run was performed on a machine reporting **15.61 GiB RAM**. The S
 
 Therefore, the 100-client result is evidence that the application handled the workload on the tested machine, but it does **not** verify the 2 GB acceptance condition. Repeat the 100-client test in a 2 GB environment and record the actual available memory and result.
 
-CPU and host details should be captured by the enhanced benchmark output on the next run. Do not infer CPU utilization from process CPU time.
+The benchmark JSON reports CPU and memory details for the machine running the benchmark script. If the application server is remote, record its memory limit/RAM independently; do not treat load-generator memory as evidence about the server environment. Do not infer CPU utilization from process CPU time.
 
 ## 5. Outstanding acceptance checks
 
-| Requirement | Status | Next action |
-|---|---|---|
-| PERF-1 — message delivery latency | Partially verified | Repeat over a separate LAN/broadband path; current numbers are loopback |
-| PERF-2 — 100 concurrent clients | Partially verified | Repeat on the SRS-specified 2 GB environment |
-| PERF-3 — registration/login | PASS in this run | Retain recorded maxima |
-| PERF-4 — latest 50 messages | PASS in this run | Retain recorded p95 |
-| PERF-5 — initial page usable within 3 seconds at 4 Mbps | PASS for five recorded Network Finish readings | Five Chrome reloads with cache disabled and a custom 4 Mbps download / 4 Mbps upload profile: 212, 191, 185, 206, 182 ms (all below 3,000 ms) |
+| Requirement | Evidence recorded | Evidence status | Still needed |
+|---|---|---|---|
+| PERF-1 — at least 95% within 500 ms on LAN / 1,000 ms on broadband | Loopback: p95 161.19 ms; 99.99% within 500 ms | **Partial** — target observed only on loopback | Repeat separately on a LAN path at 500 ms and a broadband path at 1,000 ms; save both JSON outputs and network-path details |
+| PERF-2 — 100 simultaneous clients without message loss in 2 GB environment | 100 clients for 600 seconds; 60,000/60,000 deliveries; zero missing acknowledgements; host had 15.61 GiB RAM | **Partial** — loss result recorded, required memory condition not exercised | Repeat the full run with the server in the SRS 2 GB environment and record that host's actual memory limit/RAM |
+| PERF-3 — registration and login within 2 seconds | Max registration 189.30 ms; max login 85.28 ms | **Measured pass** for the 2026-10-30 run | Retain the raw JSON if available |
+| PERF-4 — latest 50 messages within 1 second | History p95 72.77 ms | **Measured pass** for the 2026-10-30 run | Retain the raw JSON if available |
+| PERF-5 — page load within 3 seconds at 4 Mbps | Five Chrome Network Finish readings: 212, 191, 185, 206, 182 ms | **Measured pass for Network Finish proxy**; visible/usable readiness was not timed | If “page load” means user-visible usable state, record that readiness timing too; preserve throttle settings and evidence |
 
 ## 6. PERF-5 manual Chrome results
 
