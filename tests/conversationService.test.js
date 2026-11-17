@@ -24,12 +24,21 @@ describe('getOrCreatePrivateConversation (CA-21)', () => {
     const existing = { _id: 'c1' };
     Conversation.findOne.mockResolvedValue(existing);
     expect(await getOrCreatePrivateConversation(a, b)).toBe(existing);
+    expect(User.findById).toHaveBeenNthCalledWith(1, a);
+    expect(User.findById).toHaveBeenNthCalledWith(2, b);
+    expect(Conversation.findOne).toHaveBeenCalledWith({
+      participantsKey: Conversation.buildParticipantsKey([a, b]),
+    });
     expect(Conversation.create).not.toHaveBeenCalled();
   });
   it('creates a conversation when none exists', async () => {
     Conversation.findOne.mockResolvedValue(null);
     Conversation.create.mockResolvedValue({ _id: 'new' });
     expect(await getOrCreatePrivateConversation(a, b)).toEqual({ _id: 'new' });
+    expect(Conversation.create).toHaveBeenCalledWith({
+      type: 'private',
+      participants: [a, b],
+    });
     expect(Conversation.create).toHaveBeenCalledTimes(1);
   });
   it('returns the winner when a race triggers a duplicate-key error', async () => {

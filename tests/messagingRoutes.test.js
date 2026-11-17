@@ -4,16 +4,22 @@ const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 
+jest.mock('../src/models/ConversationMember', () => ({
+  collection: { name: 'conversationmembers' },
+  find: jest.fn(),
+}));
+
 jest.mock('../src/models/Conversation', () => ({
   find: jest.fn(),
   findById: jest.fn(),
 }));
-jest.mock('../src/models/Message', () => ({ find: jest.fn() }));
+jest.mock('../src/models/Message', () => ({ find: jest.fn(), aggregate: jest.fn() }));
 jest.mock('../src/modules/messaging/conversationService', () => ({
   getOrCreatePrivateConversation: jest.fn(),
 }));
 
 const Conversation = require('../src/models/Conversation');
+const ConversationMember = require('../src/models/ConversationMember');
 const Message = require('../src/models/Message');
 const { getOrCreatePrivateConversation } = require('../src/modules/messaging/conversationService');
 const { createApp } = require('../src/app');
@@ -43,6 +49,10 @@ function historyConversation(participants = [callerId, participantId]) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  Message.aggregate.mockResolvedValue([]);
+  ConversationMember.find.mockReturnValue({
+    select: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
+  });
 });
 
 describe('conversation listing and creation routes', () => {
@@ -81,6 +91,57 @@ describe('conversation listing and creation routes', () => {
     ]);
     expect(Conversation.find).toHaveBeenCalledWith({ participants: callerId });
     expect(query.sort).toHaveBeenCalledWith({ updatedAt: -1 });
+  });
+
+  it('counts messages after each member read position and excludes own messages', async () => {
+    const query = {
+      populate: jest.fn().mockReturnThis(),
+      sort: jest.fn().mockResolvedValue([
+        { _id: new mongoose.Types.ObjectId('64b7f0c2a1b2c3d4e5f60720'), type: 'private', participants: [{ _id: callerId }, { _id: participantId, username: 'bob' }] },
+        { _id: new mongoose.Types.ObjectId('64b7f0c2a1b2c3d4e5f60721'), type: 'group', name: 'Project Team', participants: [{ _id: callerId }, { _id: participantId, username: 'bob' }] },
+      ]),
+    };
+    Conversation.find.mockReturnValue(query);
+    const readPosition = new mongoose.Types.ObjectId('64b7f0c2a1b2c3d4e5f60730');
+    ConversationMember.find.mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue([{
+          conversation: new mongoose.Types.ObjectId('64b7f0c2a1b2c3d4e5f60720'),
+          lastReadMessageId: readPosition,
+        }]),
+      }),
+    });
+    Message.aggregate.mockResolvedValue([
+      { _id: new mongoose.Types.ObjectId('64b7f0c2a1b2c3d4e5f60720'), count: 3 },
+      { _id: new mongoose.Types.ObjectId('64b7f0c2a1b2c3d4e5f60721'), count: 2 },
+    ]);
+
+    const response = await request(app).get('/api/conversations').set('Authorization', bearer);
+
+    expect(response.status).toBe(200);
+    expect(response.body.map((conversation) => conversation.unreadCount)).toEqual([3, 2]);
+    const pipeline = Message.aggregate.mock.calls[0][0];
+    expect(ConversationMember.find).toHaveBeenCalledWith({
+      conversation: {
+        $in: [
+          new mongoose.Types.ObjectId('64b7f0c2a1b2c3d4e5f60720'),
+          new mongoose.Types.ObjectId('64b7f0c2a1b2c3d4e5f60721'),
+        ],
+      },
+      user: callerId,
+    });
+    expect(pipeline).toHaveLength(2);
+    expect(pipeline[0].$match.$or).toEqual([
+      expect.objectContaining({
+        conversation: new mongoose.Types.ObjectId('64b7f0c2a1b2c3d4e5f60720'),
+        _id: { $gt: readPosition },
+        readBy: { $ne: new mongoose.Types.ObjectId(callerId) },
+      }),
+      expect.objectContaining({
+        conversation: new mongoose.Types.ObjectId('64b7f0c2a1b2c3d4e5f60721'),
+        readBy: { $ne: new mongoose.Types.ObjectId(callerId) },
+      }),
+    ]);
   });
 
   it('returns recent messages oldest-first when creating a conversation', async () => {

@@ -2,6 +2,20 @@
 (function (Chat) {
   const $ = (id) => document.getElementById(id);
   const { ui, api, ws } = Chat;
+  let readAcks = null;
+  let readAckUserId = null;
+
+  function ensureReadAckQueue() {
+    const userId = (api.session.user || {}).userId || 'anonymous';
+    if (readAcks && readAckUserId === userId) return readAcks;
+    if (readAcks) readAcks.pause();
+    readAckUserId = userId;
+    readAcks = Chat.readAcks.create(
+      (conversationId, lastReadMessageId) => ws.send('message:read', { conversationId, lastReadMessageId }),
+      { storageKey: `chat.read-acknowledgements.${userId}.v1` }
+    );
+    return readAcks;
+  }
 
   // ---------- views ----------
   function showAuth(tab) {
@@ -20,6 +34,7 @@
   }
 
   function showChat() {
+    ensureReadAckQueue();
     $('auth-view').hidden = true;
     $('chat-view').hidden = false;
     $('logout-btn').hidden = false;
@@ -116,6 +131,7 @@
   async function logout(message) {
     const logoutRequest = api.logout();
     ws.close();
+    if (readAcks) readAcks.pause();
     api.session.clear();
     showAuth('login');
 
@@ -145,23 +161,39 @@
     return li;
   }
 
-  async function loadConversations() {
+  let conversationCache = [];
+  let conversationLoadId = 0;
+  function renderConversationList(conversations) {
     const list = $('conversation-list');
     list.replaceChildren();
+    if (!conversations.length) {
+      list.appendChild(emptyItem('No conversations yet'));
+      return;
+    }
+    conversations.forEach((conversation) => list.appendChild(convItem(conversation)));
+  }
+
+  async function loadConversations() {
+    const loadId = ++conversationLoadId;
 
     try {
       const convs = await api.listConversations();
+      if (loadId !== conversationLoadId) return;
 
-      if (!convs.length) {
-        list.appendChild(emptyItem('No conversations yet'));
-        return;
-      }
+      conversationCache = convs;
+      Chat.unread.updateTitleFromConversations(conversationCache);
 
-      convs.forEach((c) => list.appendChild(convItem(c)));
+      if (!$('search-input').value.trim()) renderConversationList(conversationCache);
     } catch {
-      list.appendChild(emptyItem('No conversations yet'));
+      if (loadId === conversationLoadId && !$('search-input').value.trim()) {
+        $('conversation-list').replaceChildren(emptyItem('No conversations yet'));
+      }
     }
   }
+
+  const unreadRefresh = Chat.unread.createRefreshScheduler(() => {
+    void loadConversations();
+  });
 
   function convItem(c) {
     const li = document.createElement('li');
@@ -225,6 +257,13 @@
     }
   }
 
+  function acknowledgeConversationRead(conversationId, messages) {
+    if (Chat.mock.enabled || !Array.isArray(messages) || !messages.length) return;
+    const latestMessageId = messages[messages.length - 1].messageId;
+    if (!latestMessageId) return;
+    ensureReadAckQueue().queue(conversationId, String(latestMessageId));
+  }
+
   async function openConversation(c) {
     if (remoteTypingTimeout) {
       clearTimeout(remoteTypingTimeout);
@@ -278,7 +317,7 @@
           c.conversationId,
           res.messages || []
         );
-        acknowledgeRead(res.messages || [], c.conversationId);
+        acknowledgeConversationRead(c.conversationId, res.messages || []);
 
         historyState.hasMore = Boolean(res.hasMore);
         historyState.nextCursor = res.nextCursor || null;
@@ -323,7 +362,6 @@
       }
 
       Chat.messages.prepend(res.messages || []);
-      acknowledgeRead(res.messages || [], conversation.conversationId);
 
       state.hasMore = Boolean(res.hasMore);
       state.nextCursor = res.nextCursor || null;
@@ -435,6 +473,7 @@
 
   // CA-36: Re-sync messages missed while the WebSocket was disconnected.
   ws.on('auth:ok', async () => {
+    ensureReadAckQueue().retryPending();
     if (Chat.mock.enabled || !currentConversation) return;
 
     const conversationId = currentConversation.conversationId;
@@ -495,8 +534,29 @@
       });
     }
 
-    if (shown && currentConversation) {
+    const activeConversationId = $('chat-view').dataset.pane === 'chat' && currentConversation
+      ? currentConversation.conversationId
+      : null;
+    if (shown && activeConversationId === normalized.conversationId) {
       acknowledgeRead([normalized], currentConversation.conversationId);
+    } else {
+      const conversation = conversationCache.find(
+        (item) => item.conversationId === normalized.conversationId
+      );
+      Chat.unread.notifyIncoming(
+        normalized,
+        activeConversationId,
+        conversation && conversation.name,
+        ui.toast
+      );
+      unreadRefresh.schedule();
+    }
+  });
+
+  ws.on('message:read:processed', (payload) => {
+    if (payload && payload.conversationId) {
+      ensureReadAckQueue().confirm(payload.conversationId, payload.lastReadMessageId);
+      unreadRefresh.schedule();
     }
   });
 
@@ -565,6 +625,22 @@
           : 'Offline';
       }
 
+      li.tabIndex = 0;
+      li.setAttribute('role', 'button');
+      li.setAttribute('aria-label', `Start conversation with ${name.textContent}`);
+      const startChat = () => startPrivateConversation({
+        userId: user.userId,
+        username: Chat.names[user.userId] || user.userId,
+        displayName: Chat.names[user.userId] || user.userId,
+      }, li, status);
+      li.onclick = startChat;
+      li.onkeydown = (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          startChat();
+        }
+      };
+
       li.append(name, status);
       list.appendChild(li);
     });
@@ -601,8 +677,6 @@
     }
   });
 
-  // TODO CA-38: unread badge for messages in other conversations.
-  
   // CA-39: Search users and start private conversations.
   const searchInput = $('search-input');
   let searchTimeout = null;
@@ -635,37 +709,7 @@
       details.append(name, username);
       li.appendChild(details);
 
-      const startChat = async () => {
-        if (li.dataset.loading === 'true') return;
-
-        li.dataset.loading = 'true';
-        username.textContent = 'Starting conversation...';
-
-        try {
-          const result = await api.createPrivateConversation(user.userId);
-
-          if (!result || !result.conversation) {
-            throw new Error('Could not start conversation.');
-          }
-
-          searchInput.value = '';
-          searchRequestId++;
-
-          if (searchTimeout) {
-            clearTimeout(searchTimeout);
-          }
-
-          await loadConversations();
-          await openConversation(result.conversation);
-        } catch (err) {
-          li.dataset.loading = 'false';
-          username.textContent = '@' + user.username;
-          ui.toast(
-            'error',
-            err.message || 'Could not start conversation.'
-          );
-        }
-      };
+      const startChat = () => startPrivateConversation(user, li, username);
 
       li.onclick = startChat;
 
@@ -678,6 +722,31 @@
 
       list.appendChild(li);
     });
+  }
+
+  async function startPrivateConversation(user, item, statusLabel) {
+    if (item.dataset.loading === 'true') return;
+    item.dataset.loading = 'true';
+    const originalStatus = statusLabel.textContent;
+    statusLabel.textContent = 'Starting conversation...';
+
+    try {
+      const result = await api.createPrivateConversation(user.userId);
+      if (!result || !result.conversation) {
+        throw new Error('The server did not return a conversation. Please try again.');
+      }
+
+      if (searchInput) searchInput.value = '';
+      searchRequestId += 1;
+      if (searchTimeout) clearTimeout(searchTimeout);
+
+      await loadConversations();
+      await openConversation(result.conversation);
+    } catch (err) {
+      item.dataset.loading = 'false';
+      statusLabel.textContent = originalStatus;
+      ui.toast('error', err.message || 'Could not start conversation. Please try again.');
+    }
   }
 
   searchInput.addEventListener('input', () => {
@@ -707,9 +776,8 @@
       } catch (err) {
         if (requestId !== searchRequestId) return;
 
-        list.replaceChildren();
-        list.appendChild(emptyItem('Search failed. Try again.'));
-        ui.toast('error', err.message || 'User search failed.');
+        list.replaceChildren(emptyItem(`Search failed: ${err.message || 'Please try again.'}`));
+        ui.toast('error', err.message || 'User search failed. Please try again.');
       }
     }, 250);
   });

@@ -290,6 +290,9 @@ function attachGateway(server, {
         readerId: socket.userId,
         conversationId: payload.conversationId,
         messageIds: payload.messageIds,
+        ...(payload.lastReadMessageId
+          ? { lastReadMessageId: payload.lastReadMessageId }
+          : {}),
       });
 
       // Notify each original sender that their message has been read.
@@ -303,6 +306,16 @@ function attachGateway(server, {
         (online.get(senderId) || []).forEach((senderSocket) => {
           send(senderSocket, 'message:status', status);
         });
+      });
+
+      const readConfirmation = {
+        conversationId: String(payload.conversationId),
+        ...(payload.lastReadMessageId
+          ? { lastReadMessageId: String(payload.lastReadMessageId) }
+          : {}),
+      };
+      (online.get(String(socket.userId)) || []).forEach((readerSocket) => {
+        send(readerSocket, 'message:read:processed', readConfirmation);
       });
     } catch (err) {
       const known = Boolean(err.status && err.status < 500);

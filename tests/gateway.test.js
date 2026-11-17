@@ -664,8 +664,36 @@ describe('Read receipts (CA-37)', () => {
       expect(markMessagesRead).toHaveBeenCalledWith({
         readerId: 'bob', conversationId: 'conversation-1', messageIds: ['m-read-1'],
       });
+      await expect(waitFor(bob, 'message:read:processed')).resolves.toMatchObject({
+        payload: { conversationId: 'conversation-1' },
+      });
     } finally {
       alice.close();
+      bob.close();
+    }
+  });
+
+  it('echoes the acknowledged read position to the reader for pending client retries', async () => {
+    const bob = await login('bob');
+    const lastReadMessageId = '64b7f0c2a1b2c3d4e5f60730';
+    markMessagesRead.mockResolvedValue({ messages: [], newlyRead: 0 });
+
+    try {
+      bob.send(JSON.stringify({
+        type: 'message:read',
+        payload: { conversationId: 'conversation-1', lastReadMessageId },
+      }));
+
+      await expect(waitFor(bob, 'message:read:processed')).resolves.toMatchObject({
+        payload: { conversationId: 'conversation-1', lastReadMessageId },
+      });
+      expect(markMessagesRead).toHaveBeenCalledWith({
+        readerId: 'bob',
+        conversationId: 'conversation-1',
+        messageIds: undefined,
+        lastReadMessageId,
+      });
+    } finally {
       bob.close();
     }
   });

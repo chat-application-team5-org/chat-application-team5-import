@@ -16,6 +16,7 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || 'integration-test-secret';
 const mongoose = require('mongoose');
 const User = require('../../src/models/User');
 const Conversation = require('../../src/models/Conversation');
+const ConversationMember = require('../../src/models/ConversationMember');
 const Message = require('../../src/models/Message');
 const { createApp } = require('../../src/app');
 const { attachGateway } = require('../../src/ws/gateway');
@@ -114,7 +115,7 @@ beforeAll(async () => {
     runtimeAdapters: { os },
   });
   await mongoose.connection.dropDatabase();
-  await Promise.all([User.init(), Conversation.init(), Message.init()]);
+  await Promise.all([User.init(), Conversation.init(), ConversationMember.init(), Message.init()]);
   await startServer();
 });
 
@@ -497,4 +498,117 @@ test('CA-42: real messages share a per-user rate limit across sockets', async ()
   first.send(JSON.stringify({ type: 'message:send', payload: { conversationId, content: 'blocked', clientMsgId: 'rate-real-blocked' } }));
   expect((await blocked).code).toBe('RATE_LIMITED');
   expect(await Message.countDocuments({ conversation: conversationId, sender: sender.id })).toBe(20);
+});
+
+test('CA-38 / TC-STS-02 backend flow: unread count persists, clears on read position, and stays clear on refresh', async () => {
+  async function createUser(username) {
+    const registration = await requestJson('/api/auth/register', {
+      method: 'POST', body: { username, email: `${username}@example.com`, password: 'Secret123' },
+    });
+    expect(registration.response.status).toBe(201);
+    const login = await requestJson('/api/auth/login', {
+      method: 'POST', body: { identifier: username, password: 'Secret123' },
+    });
+    expect(login.response.status).toBe(200);
+    return { id: registration.data.userId, token: login.data.token };
+  }
+
+  const sender = await createUser('readreceipt_sender');
+  const reader = await createUser('readreceipt_reader');
+  const thirdUser = await createUser('readreceipt_other');
+  const targetResponse = await requestJson('/api/conversations', {
+    method: 'POST', token: sender.token, body: { participantId: reader.id },
+  });
+  const retrievedTargetResponse = await requestJson('/api/conversations', {
+    method: 'POST', token: reader.token, body: { participantId: sender.id },
+  });
+  const openConversationResponse = await requestJson('/api/conversations', {
+    method: 'POST', token: reader.token, body: { participantId: thirdUser.id },
+  });
+  const targetConversationId = String(targetResponse.data.conversation._id);
+  expect(String(retrievedTargetResponse.data.conversation._id)).toBe(targetConversationId);
+  const openConversationId = String(openConversationResponse.data.conversation._id);
+  await Message.create({
+    conversation: targetConversationId,
+    sender: sender.id,
+    content: 'legacy message already read',
+    status: 'READ',
+    readBy: [reader.id],
+  });
+  const legacyUnreadMessage = await Message.create({
+    conversation: targetConversationId,
+    sender: sender.id,
+    content: 'legacy message without receipt data',
+    status: 'SENT',
+  });
+  await Message.collection.updateOne(
+    { _id: legacyUnreadMessage._id },
+    { $unset: { readBy: 1 } }
+  );
+  const legacyList = await requestJson('/api/conversations', { token: reader.token });
+  expect(legacyList.data.find((item) => item.conversationId === targetConversationId).unreadCount).toBe(1);
+  await Message.updateOne(
+    { _id: legacyUnreadMessage._id },
+    { $addToSet: { readBy: reader.id }, $set: { status: 'READ' } }
+  );
+  const legacyReadList = await requestJson('/api/conversations', { token: reader.token });
+  expect(legacyReadList.data.find((item) => item.conversationId === targetConversationId).unreadCount).toBe(0);
+  const senderSocket = await connectSocket(sender.token);
+  const readerSocket = await connectSocket(reader.token);
+
+  try {
+    // B is viewing another conversation while A delivers three messages to B.
+    const viewedHistory = await requestJson(
+      `/api/conversations/${openConversationId}/messages`, { token: reader.token }
+    );
+    expect(viewedHistory.response.status).toBe(200);
+    const messageIds = [];
+    for (let index = 1; index <= 3; index += 1) {
+      const clientMsgId = `tc-sts-02-${index}`;
+      const senderStatus = nextEvent(senderSocket, 'message:status', (p) => p.clientMsgId === clientMsgId);
+      const incoming = nextEvent(readerSocket, 'message:new', (p) => p.message && p.message.clientMsgId === clientMsgId);
+      senderSocket.send(JSON.stringify({
+        type: 'message:send',
+        payload: { conversationId: targetConversationId, content: `Test ${index}`, clientMsgId },
+      }));
+      const [status, delivered] = await Promise.all([senderStatus, incoming]);
+      expect(status.status).toBe('SENT');
+      messageIds.push(String(delivered.message._id));
+    }
+
+    const listBeforeRead = await requestJson('/api/conversations', { token: reader.token });
+    expect(listBeforeRead.data.find((item) => item.conversationId === targetConversationId).unreadCount).toBe(3);
+    expect(listBeforeRead.data.find((item) => item.conversationId === openConversationId).unreadCount).toBe(0);
+
+    const openedHistory = await requestJson(
+      `/api/conversations/${targetConversationId}/messages?limit=50`, { token: reader.token }
+    );
+    expect(openedHistory.response.status).toBe(200);
+    const latestMessageId = String(openedHistory.data.messages.at(-1)._id);
+    expect(latestMessageId).toBe(messageIds[messageIds.length - 1]);
+    const readProcessed = nextEvent(readerSocket, 'message:read:processed', (p) => (
+      p.conversationId === targetConversationId && p.lastReadMessageId === latestMessageId
+    ));
+    readerSocket.send(JSON.stringify({
+      type: 'message:read',
+      payload: { conversationId: targetConversationId, lastReadMessageId: latestMessageId },
+    }));
+    await readProcessed;
+
+    const memberPosition = await ConversationMember.findOne({
+      conversation: targetConversationId, user: reader.id,
+    });
+    expect(String(memberPosition.lastReadMessageId)).toBe(latestMessageId);
+    const readMessages = await Message.find({ _id: { $in: messageIds } }).lean();
+    expect(readMessages.every((message) => message.readBy.map(String).includes(String(reader.id)))).toBe(true);
+
+    // Re-fetching the list simulates refresh or navigating away and returning.
+    const listAfterRead = await requestJson('/api/conversations', { token: reader.token });
+    expect(listAfterRead.data.find((item) => item.conversationId === targetConversationId).unreadCount).toBe(0);
+    const listAfterRefresh = await requestJson('/api/conversations', { token: reader.token });
+    expect(listAfterRefresh.data.find((item) => item.conversationId === targetConversationId).unreadCount).toBe(0);
+  } finally {
+    senderSocket.close();
+    readerSocket.close();
+  }
 });

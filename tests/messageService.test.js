@@ -4,15 +4,21 @@ jest.mock('../src/models/Conversation', () => ({
   findById: jest.fn(),
   find: jest.fn(),
 }));
+jest.mock('../src/models/ConversationMember', () => ({
+  updateOne: jest.fn(),
+}));
 jest.mock('../src/models/Message', () => ({
   create: jest.fn(),
   find: jest.fn(),
   findById: jest.fn(),
   updateOne: jest.fn(),
   updateMany: jest.fn(),
+  exists: jest.fn(),
+  bulkWrite: jest.fn(),
 }));
 
 const Conversation = require('../src/models/Conversation');
+const ConversationMember = require('../src/models/ConversationMember');
 const Message = require('../src/models/Message');
 const {
   sendMessage,
@@ -29,6 +35,10 @@ const convId = oid();
 beforeEach(() => {
   jest.resetAllMocks();
   Conversation.findById.mockResolvedValue({ _id: convId, participants: [sender, other] });
+  ConversationMember.updateOne.mockResolvedValue({ acknowledged: true });
+  Message.bulkWrite.mockImplementation((operations) => ({
+    modifiedCount: operations.length,
+  }));
 });
 
 describe('sendMessage (CA-27)', () => {
@@ -262,38 +272,130 @@ describe('markMessageDelivered (CA-24)', () => {
 
 
 describe('markMessagesRead (CA-37)', () => {
+  function mockCandidateBatches(batches) {
+    const find = jest.fn();
+    batches.forEach((batch) => {
+      const query = {
+        select: jest.fn().mockReturnThis(),
+        sort: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValueOnce(batch),
+      };
+      find.mockReturnValueOnce(query);
+    });
+    Message.find = find;
+    return find;
+  }
+
   it('marks only incoming messages in a conversation as read for a member', async () => {
     const ids = [String(oid()), String(oid())];
-    Message.updateMany.mockResolvedValue({ modifiedCount: 2 });
-    Message.find.mockReturnValue({
-      select: jest.fn().mockResolvedValue(ids.map((_id) => ({
-        _id, sender, clientMsgId: 'client-1', status: 'READ',
-      }))),
-    });
-
+    const find = mockCandidateBatches([[{ _id: ids[0] }, { _id: ids[1] }], []]);
     const result = await markMessagesRead({
       readerId: other, conversationId: String(convId), messageIds: ids,
     });
 
-    expect(Message.updateMany).toHaveBeenCalledWith({
+    expect(find).toHaveBeenCalledWith({
       _id: { $in: ids },
       conversation: convId,
       sender: { $ne: other },
       status: { $in: ['SENT', 'DELIVERED', 'READ'] },
       readBy: { $ne: other },
-    }, {
-      $set: { status: 'READ' },
-      $addToSet: { readBy: other },
     });
+    expect(find.mock.results[0].value.limit).toHaveBeenCalledWith(100);
+    expect(Message.bulkWrite).toHaveBeenCalledWith([
+      { updateOne: { filter: { _id: ids[0], conversation: convId, sender: { $ne: other }, status: { $in: ['SENT', 'DELIVERED', 'READ'] }, readBy: { $ne: other } }, update: { $set: { status: 'READ' }, $addToSet: { readBy: other } } } },
+      { updateOne: { filter: { _id: ids[1], conversation: convId, sender: { $ne: other }, status: { $in: ['SENT', 'DELIVERED', 'READ'] }, readBy: { $ne: other } }, update: { $set: { status: 'READ' }, $addToSet: { readBy: other } } } },
+    ], { ordered: false });
     expect(result.newlyRead).toBe(2);
     expect(result.messages).toHaveLength(2);
+    expect(ConversationMember.updateOne).not.toHaveBeenCalled();
+  });
+
+  it('uses the last-read position to mark all earlier incoming messages read', async () => {
+    const boundary = oid();
+    const firstIncoming = oid();
+    const secondIncoming = oid();
+    Message.exists.mockResolvedValue(true);
+    mockCandidateBatches([[{ _id: firstIncoming }, { _id: secondIncoming }], []]);
+
+    const result = await markMessagesRead({
+      readerId: other,
+      conversationId: String(convId),
+      lastReadMessageId: String(boundary),
+    });
+
+    expect(Message.find.mock.calls[0][0]).toEqual({
+      conversation: convId,
+      sender: { $ne: other },
+      status: { $in: ['SENT', 'DELIVERED', 'READ'] },
+      readBy: { $ne: other },
+      _id: { $lte: boundary },
+    });
+    expect(result.messages).toHaveLength(2);
+    expect(result.newlyRead).toBe(2);
+    expect(ConversationMember.updateOne).toHaveBeenCalledWith({
+      conversation: convId, user: other,
+    }, {
+      $max: { lastReadMessageId: boundary },
+      $setOnInsert: { joinedAt: expect.any(Date) },
+    }, { upsert: true });
+  });
+
+  it('updates large read ranges in bounded bulk batches', async () => {
+    const boundary = oid();
+    const firstBatch = Array.from({ length: 100 }, () => ({ _id: oid() }));
+    const secondBatch = [{ _id: oid() }];
+    Message.exists.mockResolvedValue(true);
+    mockCandidateBatches([firstBatch, secondBatch, []]);
+
+    const result = await markMessagesRead({
+      readerId: other,
+      conversationId: String(convId),
+      lastReadMessageId: String(boundary),
+    });
+
+    expect(Message.bulkWrite).toHaveBeenCalledTimes(2);
+    expect(Message.bulkWrite.mock.calls.map(([operations]) => operations.length)).toEqual([100, 1]);
+    expect(Message.find.mock.calls[0][0]).toMatchObject({
+      conversation: convId,
+      sender: { $ne: other },
+      readBy: { $ne: other },
+      _id: { $lte: boundary },
+    });
+    expect(Message.bulkWrite.mock.calls[0][0][0].updateOne.filter).toMatchObject({
+      conversation: convId,
+      sender: { $ne: other },
+      readBy: { $ne: other },
+      _id: firstBatch[0]._id,
+    });
+    expect(result.newlyRead).toBe(101);
+    expect(result.messages).toHaveLength(101);
+  });
+
+  it('keeps repeated cursor acknowledgements idempotent and writes a monotonic cursor', async () => {
+    const boundary = oid();
+    Message.exists.mockResolvedValue(true);
+    mockCandidateBatches([[], []]);
+
+    const first = await markMessagesRead({
+      readerId: other, conversationId: String(convId), lastReadMessageId: String(boundary),
+    });
+    const repeated = await markMessagesRead({
+      readerId: other, conversationId: String(convId), lastReadMessageId: String(boundary),
+    });
+
+    expect(first.newlyRead).toBe(0);
+    expect(repeated.newlyRead).toBe(0);
+    expect(Message.bulkWrite).not.toHaveBeenCalled();
+    expect(ConversationMember.updateOne).toHaveBeenCalledTimes(2);
+    expect(ConversationMember.updateOne.mock.calls[1][1].$max.lastReadMessageId).toEqual(boundary);
   });
 
   it('rejects a non-member and does not update messages', async () => {
     await expect(markMessagesRead({
       readerId: oid(), conversationId: String(convId), messageIds: [String(oid())],
     })).rejects.toMatchObject({ code: 'FORBIDDEN_NOT_MEMBER' });
-    expect(Message.updateMany).not.toHaveBeenCalled();
+    expect(Message.find).not.toHaveBeenCalled();
   });
 
   it('validates conversation and message identifiers', async () => {

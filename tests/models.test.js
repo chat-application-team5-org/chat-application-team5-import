@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 
 const User = require('../src/models/User');
 const Conversation = require('../src/models/Conversation');
+const ConversationMember = require('../src/models/ConversationMember');
 const Message = require('../src/models/Message');
 
 const id = () => new mongoose.Types.ObjectId();
@@ -219,5 +220,19 @@ describe('Message model (CA-14)', () => {
         content: 'Hi',
       }))
     ).toBeDefined();
+  });
+});
+
+describe('ConversationMember model (CA-38)', () => {
+  it('stores one member read position per conversation and user', () => {
+    const conversation = id();
+    const user = id();
+    const member = new ConversationMember({ conversation, user });
+
+    expect(member.lastReadMessageId).toBeNull();
+    const index = ConversationMember.schema.indexes().find(
+      ([fields]) => fields.conversation && fields.user
+    );
+    expect(index[1].unique).toBe(true);
   });
 });
