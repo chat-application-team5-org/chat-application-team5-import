@@ -452,6 +452,9 @@
   async function openGroupInfo() {
     if (!currentConversation || currentConversation.type !== 'GROUP') return;
     if (!$('group-info-dialog').open) $('group-info-dialog').showModal();
+    groupInfoState = null;
+    $('group-admin-controls').hidden = true;
+    $('group-member-list').replaceChildren();
     setGroupInfoFeedback('Loading group information...');
     await refreshGroupInfo();
   }
@@ -459,6 +462,10 @@
   function closeGroupInfo() {
     groupInfoRequestId += 1;
     groupSearchRequestId += 1;
+    groupInfoState = null;
+    $('group-admin-controls').hidden = true;
+    $('group-member-list').replaceChildren();
+    $('group-add-results').replaceChildren();
     if (groupSearchTimer) {
       clearTimeout(groupSearchTimer);
       groupSearchTimer = null;
@@ -588,9 +595,11 @@
     if (!confirmed) return;
     try {
       const result = await api.leaveGroup(conversationId);
-      closeCurrentGroup(result.deleted
-        ? 'You left the group. It was deleted because fewer than three members remained.'
-        : 'You left the group.');
+      if (currentConversation && currentConversation.conversationId === conversationId) {
+        closeCurrentGroup(result.deleted
+          ? 'You left the group. It was deleted because fewer than three members remained.'
+          : 'You left the group.');
+      }
     } catch (error) {
       setGroupInfoFeedback(error.message || 'Could not leave the group.', true);
     }
