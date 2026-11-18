@@ -7,6 +7,7 @@ const { performance } = require('node:perf_hooks');
 const os = require('node:os');
 const WebSocket = require('ws');
 const { createResourceSampler } = require('./performanceResources');
+const { getPacedSendOffsets } = require('./performanceLoadSchedule');
 
 const BASE_URL = (process.env.BASE_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
 const WS_URL = BASE_URL.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:') + '/ws';
@@ -312,10 +313,16 @@ async function main() {
 
   resourceSampler = createResourceSampler();
   loadActive = true;
-  clients.forEach((client) => sendOne(client, 'load'));
-  const interval = setInterval(() => {
-    clients.forEach((client) => sendOne(client, 'load'));
-  }, 5000);
+  const loadIntervalMs = 5000;
+  const sendLoadRound = () => {
+    getPacedSendOffsets(clients.length, loadIntervalMs).forEach((offsetMs, index) => {
+      setTimeout(() => {
+        if (loadActive) sendOne(clients[index], 'load');
+      }, offsetMs);
+    });
+  };
+  sendLoadRound();
+  const interval = setInterval(sendLoadRound, loadIntervalMs);
 
   let probeError = null;
   const authProbeWork = (async () => {
