@@ -21,7 +21,6 @@ const creatorId = '64b7f0c2a1b2c3d4e5f60718';
 const member1Id = '64b7f0c2a1b2c3d4e5f60719';
 const member2Id = '64b7f0c2a1b2c3d4e5f60720';
 const member3Id = '64b7f0c2a1b2c3d4e5f60721';
-const member4Id = '64b7f0c2a1b2c3d4e5f60722';
 const newMemberId = '64b7f0c2a1b2c3d4e5f60723';
 const groupId = '64b7f0c2a1b2c3d4e5f60724';
 
