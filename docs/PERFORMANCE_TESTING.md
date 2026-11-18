@@ -2,6 +2,44 @@
 
 This procedure maps to the SRS performance requirements and Test Plan cases TC-PERF-01 to TC-PERF-03. The benchmark creates test accounts, private conversations, and messages. **Use a disposable MongoDB database only. Do not run it against a production or shared database.**
 
+## Artillery WebSocket messaging test
+
+`scripts/performance-artillery.yml` exercises this application's native WebSocket protocol. Each virtual user opens one connection to `/ws`, sends the `auth` event with a bearer JWT, waits for `auth:ok`, then sends `message:send` events in an authenticated private conversation. The fixture helper creates 100 test accounts and 50 private conversations through the existing REST API, pairing two virtual users per conversation. No application code or protocol has been changed.
+
+This test writes users, conversations, and messages. It does not clear them afterward. Use only a freshly verified disposable database. The fixture helper requires `PERF_ALLOW_WRITES=1` and `PERF_DB_NAME=chatapp_perf_artillery`; the database name variable is an operator declaration, not a server-side verification. The helper's health check confirms the app is connected but cannot identify the database selected by the running server. Confirm the server's `MONGO_URI` points to the disposable database and verify its collections are empty before preparing fixtures. The generated `scripts/.ca45-artillery-chat-users.csv` file contains test JWTs; it is ignored by Git and must be deleted after the run.
+
+### PowerShell commands
+
+In the terminal that starts the application, point it at the dedicated database and use the same HTTP origin that the load generator will send:
+
+```powershell
+$env:MONGO_URI = "mongodb://127.0.0.1:27017/chatapp_perf_artillery"
+$env:JWT_SECRET = "local-performance-test-secret-change-me"
+$env:ALLOWED_ORIGIN = "http://localhost:3000"
+npm start
+```
+
+Before proceeding, verify the database is empty with a read-only check. For a local MongoDB server with `mongosh`, for example:
+
+```powershell
+mongosh "mongodb://127.0.0.1:27017/chatapp_perf_artillery" --quiet --eval "printjson(db.getCollectionNames())"
+```
+
+Do not continue if it prints any existing collection names. On a separate load-generator terminal in the repository, prepare the 100 test users/conversations and run the Artillery script:
+
+```powershell
+$env:BASE_URL = "http://localhost:3000"
+$env:ARTILLERY_WS_URL = "ws://localhost:3000/ws"
+$env:ALLOWED_ORIGIN = "http://localhost:3000"
+$env:PERF_DB_NAME = "chatapp_perf_artillery"
+$env:PERF_ALLOW_WRITES = "1"
+node scripts/prepare-artillery-chat.js
+npx --yes artillery@2.0.34 run scripts/performance-artillery.yml --output docs/ca45-artillery-chat-2026-11-18.json
+Remove-Item -LiteralPath scripts/.ca45-artillery-chat-users.csv
+```
+
+For a remote server, change `BASE_URL`, `ARTILLERY_WS_URL`, and `ALLOWED_ORIGIN` to the server's reachable address and exact permitted HTTP origin. Keep the URL path `/ws`. Artillery creates 100 virtual users over a one-second arrival phase; each authenticates and sends 120 messages at five-second intervals, keeping the 100 WebSocket sessions open for about ten minutes. The test does not send `message:ack` or `message:read`, so it exercises authenticated sending and `message:new` broadcasts but does not validate delivery acknowledgements or read receipts. Its built-in WebSocket counters report sent/received frames, but they do not correlate every `message:status` and recipient `message:new` by message ID or calculate the PERF-1 latency percentile. Use the existing `scripts/performance-test.js` for delivery-loss and latency percentile acceptance evidence. Adding this Artillery script is not a test result; run it on a disposable database before reporting measured results.
+
 ## Targets from the SRS
 
 | Requirement | Acceptance target | How this repository checks it |
@@ -54,7 +92,7 @@ The test creates uniquely named accounts and persists messages in the configured
 
 | Requirement | How to run and what to record |
 |---|---|
-| PERF-1 — 95% within 500 ms on LAN / 1,000 ms on broadband | Run `npm run perf:full` separately from a client on the LAN and a client on the broadband path. Set `BASE_URL` to the server's LAN address for LAN evidence and its approved reachable test endpoint for broadband evidence. Set `PERF_LATENCY_TARGET_MS` to `500` for the LAN run and `1000` for the broadband run; set `ALLOWED_ORIGIN` on both server and runner to the same allowed Origin. The report's delivery latency starts immediately before the sender WebSocket write and ends at the first recipient `message:new` event. Save both JSON outputs and record network type, date, and client/server locations. Do not use `127.0.0.1`, `localhost`, or another loopback route as network-path evidence. For public network tests, use an approved TLS-protected test deployment and test-only credentials. |
+| PERF-1 — 95% within 500 ms on LAN / 1,000 ms on broadband | Run `npm run perf:full` separately from a client on the LAN and a client on the broadband path. The load generator must run on a separate device from the server; targeting the server laptop's own Wi-Fi address from that laptop is not separate-device LAN evidence, and opening the page in a phone browser does not run this Node.js load generator. Set `BASE_URL` to the server's LAN address for LAN evidence and its approved reachable test endpoint for broadband evidence. Set `PERF_LATENCY_TARGET_MS` to `500` for the LAN run and `1000` for the broadband run; set `ALLOWED_ORIGIN` on both server and runner to the same allowed Origin. The report's delivery latency starts immediately before the sender WebSocket write and ends at the first recipient `message:new` event. Save both JSON outputs and record network type, date, and client/server locations. Do not use `127.0.0.1`, `localhost`, or another loopback route as network-path evidence. For public network tests, use an approved TLS-protected test deployment and test-only credentials. |
 | PERF-2 — 100 connections without loss in the SRS 2 GB environment | Run the server and its disposable test database in the SRS 2 GB target environment. Prefer running the benchmark from a separate load-generator machine to avoid consuming the target server's limited RAM. Use the full command above (100 clients, 600 seconds). On the server, record RAM with `(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB` (Windows) or `free -b` plus the VM/container limit (Linux). During the run, sample server CPU and available memory using the Windows `Get-Counter` command below or `pidstat -u -r -p <server-pid> 1` on Linux. JSON `benchmarkHostUsage` describes the benchmark-process host, not a remote server. Require 100 clients, zero unexpected closes/skipped sends, zero missing acknowledgements, and zero missing recipient deliveries. |
 | PERF-3 — registration and login within 2 seconds | The full run records initial account registration/login requests and `AUTH_PROBES` extra probes during message load. Verify `registration.maxMs` and `login.maxMs` are each at most `2000`, with corresponding checks passing. |
 | PERF-4 — load 50 messages within 1 second | The full run primes each measured private conversation with at least 50 messages, then requests the latest 50. Verify `history50.p95Ms <= 1000`, `history50.samples > 0`, and that each response contains exactly 50 messages. The measured time includes the authenticated HTTP request. |

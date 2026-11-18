@@ -1,0 +1,44 @@
+config:
+  target: "{{ $env.ARTILLERY_WS_URL }}"
+  phases:
+    - name: Connect 100 authenticated chat clients
+      duration: 1
+      arrivalCount: 100
+      maxVusers: 100
+  ws:
+    origin: "{{ $env.ALLOWED_ORIGIN }}"
+    timeout: 10
+  payload:
+    path: .ca45-artillery-chat-users.csv
+    fields:
+      - token
+      - conversationId
+      - username
+    order: sequence
+    skipHeader: true
+
+scenarios:
+  - name: Authenticate and exchange private chat messages
+    engine: ws
+    flow:
+      - connect: "{{ $env.ARTILLERY_WS_URL }}"
+      - send:
+          type: auth
+          payload:
+            token: "{{ token }}"
+      - wait:
+          match:
+            json: "$.type"
+            value: "auth:ok"
+      # Allow the one-second arrival phase to bring all 100 clients online
+      # before message traffic starts.
+      - think: 10
+      - loop:
+          - send:
+              type: message:send
+              payload:
+                conversationId: "{{ conversationId }}"
+                content: "CA-45 Artillery message {{ username }} {{ $loopCount }}"
+                clientMsgId: "artillery-{{ username }}-{{ $loopCount }}"
+          - think: 5
+        count: 120

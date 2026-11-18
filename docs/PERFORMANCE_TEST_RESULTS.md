@@ -157,3 +157,20 @@ The 249.03 ms p95 and 100% within 500 ms were measured over Windows-to-WSL local
 WSL checkout verification: `npm ci` completed, the full Jest suite passed (**27 suites, 191 tests**), `npm run lint` passed, and `node --check` passed for `scripts/performance-test.js`, `scripts/performanceResources.js`, and `src/server.js`.
 
 Artifacts: `docs/ca45-perf2-wsl-2026-11-17.json`, `docs/ca45-perf2-wsl-2026-11-17-process-top.txt`, and `docs/ca45-perf2-wsl-2026-11-17-vmstat.txt`. WSL test data remains in the new `~/ca45-perf-wsl/mongo-data` directory; no database cleanup was performed.
+
+## 11. PERF-1 LAN path readiness check — 2026-11-17
+
+The current laptop and phone setup is not sufficient to produce a valid PERF-1 latency measurement. The performance harness in `scripts/performance-test.js` is a Node.js program that creates 100 WebSocket clients; it cannot be run by opening the application in the iPhone browser. Running the harness on the server laptop while targeting that same laptop's Wi-Fi address would not prove delivery latency across a separate LAN client path. Therefore, no LAN latency samples were collected and PERF-1 remains **NOT RUN**. No raw benchmark JSON was generated for this check.
+
+| Network path | Samples | p50 | p95 | p99 | Maximum | Within threshold | Status |
+|---|---:|---:|---:|---:|---:|---:|---|
+| LAN (500 ms target) | 0 | N/A | N/A | N/A | N/A | N/A | **NOT RUN** — no separate Node.js client device available |
+| Broadband (1,000 ms target) | 0 | N/A | N/A | N/A | N/A | N/A | **NOT RUN** — no separate broadband-reachable test endpoint/client available |
+
+The server was reported as reachable at `http://192.168.88.9:3000`, with `ALLOWED_ORIGIN` set to that exact origin. A read-only check of the configured `chatapp_perf_lan` database found it exists and contains four empty collections: `messages` (0), `conversationmembers` (0), `conversations` (0), and `users` (0). No database writes were made. A separate Node.js-capable device on the same Wi-Fi is still required to run the LAN harness against this database. A broadband run also remains **NOT RUN**; the current LAN address is private and no separate broadband-reachable test endpoint/client was available for this check.
+
+## 12. Artillery WebSocket script — 2026-11-18 (NOT RUN)
+
+Added `scripts/performance-artillery.yml` and `scripts/prepare-artillery-chat.js` to provide an Artillery 2 WebSocket load scenario for the implemented `/ws` authentication and private-message protocol. The helper creates 100 users and 50 private conversations via the existing APIs, then writes short-lived test JWTs to a Git-ignored fixture CSV for the Artillery payload. It requires an explicit disposable database declaration and `PERF_ALLOW_WRITES=1`; it does not delete the created database records. The current `chatapp_perf_lan` database is not the helper's configured target, and this script has not been run against any database.
+
+No Artillery result is claimed. The script has not been executed, so no Artillery measurements or raw report are included. The existing Node benchmark remains the source for exact message delivery counts and PERF-1 latency percentiles.

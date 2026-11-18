@@ -5,3 +5,4 @@ node_modules/
 !.env.example
 coverage/
 *.log
+scripts/.ca45-artillery-chat-users.csv
