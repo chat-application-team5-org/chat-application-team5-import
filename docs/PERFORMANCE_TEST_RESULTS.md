@@ -174,3 +174,13 @@ The server was reported as reachable at `http://192.168.88.9:3000`, with `ALLOWE
 Added `scripts/performance-artillery.yml` and `scripts/prepare-artillery-chat.js` to provide an Artillery 2 WebSocket load scenario for the implemented `/ws` authentication and private-message protocol. The helper creates 100 users and 50 private conversations via the existing APIs, then writes short-lived test JWTs to a Git-ignored fixture CSV for the Artillery payload. It requires an explicit disposable database declaration and `PERF_ALLOW_WRITES=1`; it does not delete the created database records. The current `chatapp_perf_lan` database is not the helper's configured target, and this script has not been run against any database.
 
 No Artillery result is claimed. The script has not been executed, so no Artillery measurements or raw report are included. The existing Node benchmark remains the source for exact message delivery counts and PERF-1 latency percentiles.
+
+## 13. Latest LAN latency result and paced-harness status — 2026-11-18
+
+The latest LAN result was reported as **300 messages sent, 300 delivered, and zero missing deliveries** across 100 simultaneous WebSocket clients. The previous benchmark version sent all clients' messages as synchronized bursts. Its observed latency was p50 **577.93 ms**, p95 **780.63 ms**, p99 **802.63 ms**, with **25.33%** of samples within the 500 ms LAN target. The maximum latency was not provided. This observed run did not meet the LAN threshold.
+
+| LAN run | Samples / delivered | p50 | p95 | p99 | Maximum | Within 500 ms | Status |
+|---|---:|---:|---:|---:|---:|---:|---|
+| User-reported synchronized-send benchmark | 300 / 300 | 577.93 ms | 780.63 ms | 802.63 ms | Not provided | 25.33% | **Did not meet target** |
+
+The paced-send change in `scripts/performance-test.js` now spaces clients across each five-second round and its scheduling tests pass. **The paced benchmark has not been tested over LAN.** No raw JSON evidence file for the user-reported synchronized-send result is present in this repository. PERF-1 remains **NOT VERIFIED**: the reported LAN run missed its target, and a paced LAN result plus a separate broadband result have not been recorded.
