@@ -93,6 +93,29 @@ window.Chat = window.Chat || {};
     login: (identifier, password) => request('POST', '/api/auth/login', { identifier, password }),
     logout: () => request('POST', '/api/auth/logout').catch(() => null),
     searchUsers: (q) => request('GET', '/api/users/search?q=' + encodeURIComponent(q)),
+    getGroupDetails: async (conversationId) => {
+      const res = await request('GET', '/api/groups/' + encodeURIComponent(conversationId));
+      return res.conversation;
+    },
+    renameGroup: async (conversationId, name) => {
+      const res = await request('PATCH', '/api/groups/' + encodeURIComponent(conversationId), { name });
+      return res.conversation;
+    },
+    addGroupMember: async (conversationId, userId) => {
+      const res = await request('POST', '/api/groups/' + encodeURIComponent(conversationId) + '/members', { userId });
+      return res.conversation;
+    },
+    removeGroupMember: async (conversationId, userId) => {
+      const res = await request(
+        'DELETE',
+        '/api/groups/' + encodeURIComponent(conversationId) + '/members/' + encodeURIComponent(userId)
+      );
+      return res.conversation;
+    },
+    leaveGroup: (conversationId) => request(
+      'POST',
+      '/api/groups/' + encodeURIComponent(conversationId) + '/leave'
+    ),
     createPrivateConversation: async (participantId) => {
       const res = await request('POST', '/api/conversations', { participantId });
       return {

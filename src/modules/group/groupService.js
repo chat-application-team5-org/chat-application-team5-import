@@ -85,6 +85,39 @@ async function createGroup({ creatorId, name, memberIds }) {
   });
 }
 
+
+async function getGroupDetails({ conversationId, actorId }) {
+  const group = await getGroup(conversationId);
+  assertMember(group, actorId);
+
+  const users = await User.find({
+    _id: { $in: group.participants },
+  }).select('_id username displayName');
+
+  const usersById = new Map(users.map((user) => [String(user._id), user]));
+  const rolesById = new Map(
+    group.memberRoles.map((entry) => [String(entry.user), entry.role])
+  );
+
+  return {
+    conversationId: String(group._id),
+    type: 'GROUP',
+    name: group.name,
+    createdBy: String(group.createdBy),
+    members: group.participants.map((participantId) => {
+      const userId = String(participantId);
+      const user = usersById.get(userId);
+      const username = user ? user.username : 'Unknown user';
+      return {
+        userId,
+        username,
+        displayName: (user && user.displayName) || username,
+        role: rolesById.get(userId) || 'MEMBER',
+      };
+    }),
+  };
+}
+
 async function renameGroup({ conversationId, actorId, name }) {
   const group = await getGroup(conversationId);
   assertAdmin(group, actorId);
@@ -162,6 +195,7 @@ async function leaveGroup({ conversationId, actorId }) {
 
 module.exports = {
   createGroup,
+  getGroupDetails,
   renameGroup,
   addGroupMember,
   removeGroupMember,

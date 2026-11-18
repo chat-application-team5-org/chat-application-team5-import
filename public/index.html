@@ -79,11 +79,12 @@
       <section id="chat-pane" class="chat-pane" aria-label="Conversation">
         <div class="chat-top">
           <button id="back-btn" class="icon-btn" type="button" aria-label="Back to conversations">&larr;</button>
-        <div>
-          <div id="chat-title" class="chat-title">Select a conversation</div>
-          <div id="chat-sub" class="chat-sub"></div>
-          <div id="typing-indicator" class="chat-sub" aria-live="polite"></div>
-        </div> 
+          <div class="chat-heading">
+            <div id="chat-title" class="chat-title">Select a conversation</div>
+            <div id="chat-sub" class="chat-sub"></div>
+            <div id="typing-indicator" class="chat-sub" aria-live="polite"></div>
+          </div>
+          <button id="group-info-btn" class="btn btn-secondary group-info-btn" type="button" hidden>Group info</button>
         </div>
         <div id="message-pane" class="message-pane" aria-live="polite">
           <p class="empty">Pick a conversation or search for a user to start chatting.</p>
@@ -104,6 +105,39 @@
     <p>Real-Time Chat Application (Socket Programming), Team 5, PES University.</p>
     <p>Shortcuts: <b>Enter</b> send message, <b>Shift+Enter</b> new line, <b>Esc</b> close dialog.</p>
     <button id="about-close" class="btn btn-primary" type="button">Close</button>
+  </dialog>
+
+  <dialog id="group-info-dialog" class="dialog group-dialog" aria-labelledby="group-info-title">
+    <div class="group-dialog-header">
+      <div>
+        <h2 id="group-info-title">Group information</h2>
+        <p id="group-info-description" class="chat-sub"></p>
+      </div>
+      <button id="group-info-close" class="btn btn-secondary" type="button">Close</button>
+    </div>
+    <p id="group-info-feedback" class="group-info-feedback" role="status" aria-live="polite"></p>
+
+    <section id="group-admin-controls" class="group-admin-controls" hidden>
+      <form id="group-rename-form" class="group-action-form">
+        <label for="group-rename-input">Group name</label>
+        <div class="group-action-row">
+          <input id="group-rename-input" maxlength="50" minlength="3" required>
+          <button class="btn btn-primary" type="submit">Save name</button>
+        </div>
+      </form>
+      <div class="group-action-form">
+        <label for="group-add-search">Add a member</label>
+        <input id="group-add-search" type="search" placeholder="Search by username" autocomplete="off">
+        <div id="group-add-results" class="group-add-results"></div>
+        <p class="group-help">Search for a user, then select Add.</p>
+      </div>
+    </section>
+
+    <h3 class="group-members-heading">Members</h3>
+    <ul id="group-member-list" class="group-member-list"></ul>
+    <div class="group-dialog-footer">
+      <button id="group-leave-btn" class="btn btn-danger" type="button">Leave group</button>
+    </div>
   </dialog>
 
   <script src="js/ui.js"></script>

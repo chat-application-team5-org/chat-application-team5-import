@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 
 jest.mock('../src/modules/group/groupService', () => ({
   createGroup: jest.fn(),
+  getGroupDetails: jest.fn(),
   groupSnapshot: jest.fn((group) => ({
     conversationId: String(group._id),
     type: 'GROUP',
@@ -18,7 +19,7 @@ jest.mock('../src/modules/group/groupEvents', () => ({
   publishGroupUpdate: jest.fn(),
 }));
 
-const { createGroup } = require('../src/modules/group/groupService');
+const { createGroup, getGroupDetails } = require('../src/modules/group/groupService');
 const { publishGroupUpdate } = require('../src/modules/group/groupEvents');
 const { createApp } = require('../src/app');
 const { AppError } = require('../src/middleware/errorHandler');
@@ -41,12 +42,45 @@ describe('Group routes (CA-29)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    getGroupDetails.mockResolvedValue({
+      conversationId,
+      type: 'GROUP',
+      name: 'Project Team',
+      createdBy: creatorId,
+      members: [
+        { userId: creatorId, username: 'alice', displayName: 'Alice', role: 'ADMIN' },
+        { userId: member1Id, username: 'bob', displayName: 'Bob', role: 'MEMBER' },
+        { userId: member2Id, username: 'carol', displayName: 'Carol', role: 'MEMBER' },
+      ],
+    });
+
     createGroup.mockResolvedValue({
       _id: conversationId,
       type: 'group',
       name: 'Project Team',
       participants: [creatorId, member1Id, member2Id],
       createdBy: creatorId,
+    });
+  });
+
+
+  it('rejects group info requests without authentication', async () => {
+    const response = await request(app).get(`/api/groups/${conversationId}`);
+    expect(response.status).toBe(401);
+    expect(getGroupDetails).not.toHaveBeenCalled();
+  });
+
+  it('returns group members and roles to an authenticated member', async () => {
+    const response = await request(app)
+      .get(`/api/groups/${conversationId}`)
+      .set('Authorization', bearer);
+
+    expect(response.status).toBe(200);
+    expect(response.body.conversation.members).toHaveLength(3);
+    expect(response.body.conversation.members[0].role).toBe('ADMIN');
+    expect(getGroupDetails).toHaveBeenCalledWith({
+      conversationId,
+      actorId: creatorId,
     });
   });
 

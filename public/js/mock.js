@@ -9,6 +9,7 @@ window.Chat = window.Chat || {};
   const users = [
     { userId: 'u2', username: 'bob', displayName: 'Bob' },
     { userId: 'u3', username: 'carol', displayName: 'Carol' },
+    { userId: 'u4', username: 'dave', displayName: 'Dave' },
   ];
 
   const conversations = [
@@ -137,6 +138,89 @@ window.Chat = window.Chat || {};
       return users.filter((user) =>
         user.username.toLowerCase().includes(q)
       );
+    }
+
+    // Group information and admin actions for the group demo.
+    const groupParts = path.split('/').filter(Boolean);
+    const groupId = groupParts[2];
+    const groupTail = groupParts.slice(3);
+    if (groupParts[0] === 'api' && groupParts[1] === 'groups' && groupId === 'c2') {
+      const group = conversations.find((item) => item._id === 'c2' && item.type === 'GROUP');
+      if (!group) throw fail(404, 'NOT_FOUND', 'Group not found');
+      const currentUserId = 'u1';
+
+      if (method === 'GET' && groupTail.length === 0) {
+        return {
+          conversation: {
+            conversationId: 'c2',
+            type: 'GROUP',
+            name: group.name,
+            createdBy: currentUserId,
+            members: group.participants.map((userId) => {
+              const user = userId === currentUserId
+                ? { username: 'you', displayName: 'You' }
+                : users.find((candidate) => candidate.userId === userId) || { username: userId };
+              return {
+                userId,
+                username: user.username,
+                displayName: user.displayName || user.username,
+                role: userId === currentUserId ? 'ADMIN' : 'MEMBER',
+              };
+            }),
+          },
+        };
+      }
+
+      if (method === 'PATCH' && groupTail.length === 0) {
+        group.name = String(body.name || '').trim();
+        return {
+          conversation: {
+            conversationId: 'c2',
+            type: 'GROUP',
+            name: group.name,
+            participants: group.participants.slice(),
+          },
+        };
+      }
+
+      if (method === 'POST' && groupTail.length === 1 && groupTail[0] === 'members') {
+        const user = users.find((candidate) => candidate.userId === body.userId);
+        if (!user) throw fail(404, 'NOT_FOUND', 'User not found');
+        if (group.participants.includes(user.userId)) {
+          throw fail(409, 'ALREADY_MEMBER', 'This user is already a group member.');
+        }
+        group.participants.push(user.userId);
+        return {
+          conversation: {
+            conversationId: 'c2',
+            type: 'GROUP',
+            name: group.name,
+            participants: group.participants.slice(),
+          },
+        };
+      }
+
+      if (method === 'DELETE' && groupTail.length === 2 && groupTail[0] === 'members') {
+        if (group.participants.length <= 3) {
+          throw fail(400, 'VALIDATION_ERROR', 'A group must have at least three members.');
+        }
+        group.participants = group.participants.filter((userId) => userId !== groupTail[1]);
+        return {
+          conversation: {
+            conversationId: 'c2',
+            type: 'GROUP',
+            name: group.name,
+            participants: group.participants.slice(),
+          },
+        };
+      }
+
+      if (method === 'POST' && groupTail.length === 1 && groupTail[0] === 'leave') {
+        group.participants = group.participants.filter((userId) => userId !== currentUserId);
+        const deleted = group.participants.length < 3;
+        if (deleted) conversations.splice(conversations.indexOf(group), 1);
+        return { left: true, deleted };
+      }
     }
 
     // Get messages for a conversation

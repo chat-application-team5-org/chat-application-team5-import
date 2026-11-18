@@ -3,6 +3,7 @@ const express = require('express');
 const { currentUser } = require('../../middleware/currentUser');
 const {
   createGroup,
+  getGroupDetails,
   renameGroup,
   addGroupMember,
   removeGroupMember,
@@ -28,6 +29,20 @@ router.post('/', async (req, res, next) => {
     const group = groupSnapshot(conversation);
     notify(group.participants, 'ADDED', conversation);
     res.status(201).json({ conversation: group });
+  } catch (error) {
+    next(error);
+  }
+});
+
+
+// GET /api/groups/:id — group info, visible only to current members.
+router.get('/:id', async (req, res, next) => {
+  try {
+    const conversation = await getGroupDetails({
+      conversationId: req.params.id,
+      actorId: req.userId,
+    });
+    res.status(200).json({ conversation });
   } catch (error) {
     next(error);
   }
