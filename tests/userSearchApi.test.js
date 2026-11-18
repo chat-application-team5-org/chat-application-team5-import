@@ -42,6 +42,7 @@ describe('GET /api/users/search (CA-39)', () => {
     username: 'bob',
     displayName: 'bob',
     status: 'offline',
+    statusMessage: '',
     lastSeen: null,
   },
 ]);
@@ -49,7 +50,9 @@ describe('GET /api/users/search (CA-39)', () => {
       _id: { $ne: aliceId },
       username: { $regex: 'B', $options: 'i' },
     });
-    expect(query.select).toHaveBeenCalledWith('_id username lastSeen');
+    expect(query.select).toHaveBeenCalledWith(
+      '_id username displayName statusMessage lastSeen'
+    );
     expect(query.sort).toHaveBeenCalledWith({ username: 1 });
     expect(query.limit).toHaveBeenCalledWith(10);
   });

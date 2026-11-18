@@ -1,3 +1,4 @@
+
 const mongoose = require('mongoose');
 
 const memberRoleSchema = new mongoose.Schema(
@@ -32,7 +33,8 @@ const conversationSchema = new mongoose.Schema(
             return participants.length === 2;
           }
 
-          // Groups may shrink to two members when someone leaves.\n          // Existing groups can have one remaining member after a voluntary leave.\n          return participants.length >= 1;
+          // Groups must have at least three participants.
+          return participants.length >= 3;
         },
         message: 'A conversation has an invalid participant list.',
       },
@@ -79,6 +81,7 @@ const conversationSchema = new mongoose.Schema(
           const participantIds = this.participants.map(String);
 
           const unique = new Set(memberIds).size === memberIds.length;
+
           const allParticipantsIncluded = participantIds.every(
             (id) => memberIds.includes(id)
           );
@@ -116,10 +119,13 @@ conversationSchema.pre('validate', function setKey() {
   }
 });
 
-conversationSchema.index({ participantsKey: 1 }, {
-  unique: true,
-  sparse: true,
-});
+conversationSchema.index(
+  { participantsKey: 1 },
+  {
+    unique: true,
+    sparse: true,
+  }
+);
 
 conversationSchema.index({ participants: 1 });
 
