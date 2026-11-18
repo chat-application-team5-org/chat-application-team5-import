@@ -894,7 +894,7 @@
       const name = document.createElement('div');
       name.className = 'conv-name';
       name.textContent =
-        Chat.names[user.userId] || user.username || user.userId;
+        user.username || Chat.names[user.userId] || user.userId;
 
       const status = document.createElement('div');
       status.className = 'conv-last';
@@ -914,8 +914,8 @@
       li.setAttribute('aria-label', `Start conversation with ${name.textContent}`);
       const startChat = () => startPrivateConversation({
         userId: user.userId,
-        username: Chat.names[user.userId] || user.userId,
-        displayName: Chat.names[user.userId] || user.userId,
+        username: user.username || Chat.names[user.userId] || user.userId,
+        displayName: user.username || Chat.names[user.userId] || user.userId,
       }, li, status);
       li.onclick = startChat;
       li.onkeydown = (event) => {
