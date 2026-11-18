@@ -122,6 +122,13 @@ async function removeGroupMember({ conversationId, actorId, userId }) {
   if (!group.participants.some((id) => String(id) === String(userId))) {
     throw new AppError(404, 'NOT_FOUND', 'Group member not found.');
   }
+  if (group.participants.length <= 3) {
+    throw new AppError(
+      400,
+      'VALIDATION_ERROR',
+      'A group must have at least three members. Add another member before removing someone.'
+    );
+  }
   group.participants = group.participants.filter((id) => String(id) !== String(userId));
   group.memberRoles = group.memberRoles.filter((entry) => String(entry.user) !== String(userId));
   await group.save();
@@ -135,9 +142,10 @@ async function leaveGroup({ conversationId, actorId }) {
   group.participants = group.participants.filter((id) => String(id) !== String(actorId));
   group.memberRoles = group.memberRoles.filter((entry) => String(entry.user) !== String(actorId));
 
-  if (group.participants.length === 0) {
+  if (group.participants.length < 3) {
+    const remainingMemberIds = group.participants.map(String);
     await group.deleteOne();
-    return { group, deleted: true, remainingMemberIds: [] };
+    return { group, deleted: true, remainingMemberIds };
   }
 
   if (leavingAdmin) {
