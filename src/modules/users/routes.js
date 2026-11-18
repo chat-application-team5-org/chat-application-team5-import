@@ -11,7 +11,7 @@ const MAX_QUERY_LENGTH = 20;
 const BCRYPT_COST = 10;
 
 function escapeRegex(value) {
-  return value.replace(/[.*+?^${\}()|[\]\\]/g, '\\$&');
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function publicProfile(user) {
