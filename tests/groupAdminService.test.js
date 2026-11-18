@@ -11,6 +11,7 @@ jest.mock('../src/models/User', () => ({
 const Conversation = require('../src/models/Conversation');
 const User = require('../src/models/User');
 const {
+  getGroupDetails,
   renameGroup,
   addGroupMember,
   removeGroupMember,
@@ -89,6 +90,50 @@ describe('Group administration service (CA-32)', () => {
         actorId: member1Id,
         name: 'Renamed Team',
       })).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN_NOT_ADMIN' });
+    });
+  });
+
+
+  describe('getGroupDetails', () => {
+    test('returns group members with their roles to an existing member', async () => {
+      const group = makeGroup();
+      Conversation.findById.mockResolvedValue(group);
+      const query = {
+        select: jest.fn().mockResolvedValue([
+          { _id: creatorId, username: 'alice', displayName: 'Alice' },
+          { _id: member1Id, username: 'bob', displayName: '' },
+          { _id: member2Id, username: 'carol', displayName: 'Carol' },
+        ]),
+      };
+      User.find.mockReturnValue(query);
+
+      const details = await getGroupDetails({
+        conversationId: groupId,
+        actorId: member1Id,
+      });
+
+      expect(User.find).toHaveBeenCalledWith({ _id: { $in: group.participants } });
+      expect(query.select).toHaveBeenCalledWith('_id username displayName');
+      expect(details).toEqual({
+        conversationId: groupId,
+        type: 'GROUP',
+        name: 'Project Team',
+        createdBy: creatorId,
+        members: [
+          { userId: creatorId, username: 'alice', displayName: 'Alice', role: 'ADMIN' },
+          { userId: member1Id, username: 'bob', displayName: 'bob', role: 'MEMBER' },
+          { userId: member2Id, username: 'carol', displayName: 'Carol', role: 'MEMBER' },
+        ],
+      });
+    });
+
+    test('does not disclose group details to a non-member', async () => {
+      Conversation.findById.mockResolvedValue(makeGroup());
+      await expect(getGroupDetails({
+        conversationId: groupId,
+        actorId: newMemberId,
+      })).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN_NOT_MEMBER' });
+      expect(User.find).not.toHaveBeenCalled();
     });
   });
 
