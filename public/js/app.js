@@ -894,7 +894,7 @@
       const name = document.createElement('div');
       name.className = 'conv-name';
       name.textContent =
-        Chat.names[user.userId] || user.userId;
+        Chat.names[user.userId] || user.username || user.userId;
 
       const status = document.createElement('div');
       status.className = 'conv-last';
@@ -933,15 +933,21 @@
   ws.on('presence:update', (p) => {
     if (!p || !p.userId) return;
 
+    // Cache usernames supplied by the server; keep userId only for internal lookups.
+    const username = typeof p.username === 'string' ? p.username.trim() : '';
+    if (username) Chat.names[p.userId] = username;
+
     if (p.status === 'online') {
       presenceUsers.set(p.userId, {
         userId: p.userId,
+        username,
         status: 'online',
         lastSeen: null,
       });
     } else if (p.status === 'offline') {
       presenceUsers.set(p.userId, {
         userId: p.userId,
+        username,
         status: 'offline',
         lastSeen: p.lastSeen || null,
       });
