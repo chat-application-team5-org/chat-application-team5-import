@@ -1,0 +1,1079 @@
+{
+  "aggregate": {
+    "period": 1794994350000,
+    "counters": {
+      "vusers.created_by_name.Authenticate and exchange private chat messages": 100,
+      "vusers.created": 100,
+      "websocket.messages_sent": 12100,
+      "vusers.failed": 0,
+      "vusers.completed": 100
+    },
+    "rates": {
+      "websocket.send_rate": 32
+    },
+    "firstCounterAt": 1794993742713,
+    "firstHistogramAt": 1794994355756,
+    "lastCounterAt": 1794994356719,
+    "lastHistogramAt": 1794994356719,
+    "firstMetricAt": 1794993742713,
+    "lastMetricAt": 1794994356719,
+    "summaries": {
+      "vusers.session_length": {
+        "min": 612903.8,
+        "max": 613051,
+        "count": 100,
+        "mean": 612978.6,
+        "p50": 615625.7,
+        "median": 615625.7,
+        "p75": 615625.7,
+        "p90": 615625.7,
+        "p95": 615625.7,
+        "p99": 615625.7,
+        "p999": 615625.7
+      }
+    },
+    "histograms": {
+      "vusers.session_length": {
+        "min": 612903.8,
+        "max": 613051,
+        "count": 100,
+        "mean": 612978.6,
+        "p50": 615625.7,
+        "median": 615625.7,
+        "p75": 615625.7,
+        "p90": 615625.7,
+        "p95": 615625.7,
+        "p99": 615625.7,
+        "p999": 615625.7
+      }
+    }
+  },
+  "intermediate": [
+    {
+      "period": "1794993740000",
+      "counters": {
+        "vusers.created_by_name.Authenticate and exchange private chat messages": 100,
+        "vusers.created": 100,
+        "websocket.messages_sent": 100
+      },
+      "rates": {
+        "websocket.send_rate": 100
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993742713,
+      "lastCounterAt": 1794993743734,
+      "firstMetricAt": 1794993742713,
+      "lastMetricAt": 1794993743734,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993750000",
+      "counters": {
+        "websocket.messages_sent": 127
+      },
+      "rates": {
+        "websocket.send_rate": 24
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993754749,
+      "lastCounterAt": 1794993759991,
+      "firstMetricAt": 1794993754749,
+      "lastMetricAt": 1794993759991,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993760000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 20
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993760002,
+      "lastCounterAt": 1794993769997,
+      "firstMetricAt": 1794993760002,
+      "lastMetricAt": 1794993769997,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993770000",
+      "counters": {
+        "websocket.messages_sent": 197
+      },
+      "rates": {
+        "websocket.send_rate": 20
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993770006,
+      "lastCounterAt": 1794993779987,
+      "firstMetricAt": 1794993770006,
+      "lastMetricAt": 1794993779987,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993780000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 20
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993780008,
+      "lastCounterAt": 1794993789999,
+      "firstMetricAt": 1794993780008,
+      "lastMetricAt": 1794993789999,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993790000",
+      "counters": {
+        "websocket.messages_sent": 197
+      },
+      "rates": {
+        "websocket.send_rate": 20
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993790030,
+      "lastCounterAt": 1794993799964,
+      "firstMetricAt": 1794993790030,
+      "lastMetricAt": 1794993799964,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993800000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 20
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993800014,
+      "lastCounterAt": 1794993809973,
+      "firstMetricAt": 1794993800014,
+      "lastMetricAt": 1794993809973,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993810000",
+      "counters": {
+        "websocket.messages_sent": 195
+      },
+      "rates": {
+        "websocket.send_rate": 20
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993810019,
+      "lastCounterAt": 1794993819954,
+      "firstMetricAt": 1794993810019,
+      "lastMetricAt": 1794993819954,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993820000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 20
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993820000,
+      "lastCounterAt": 1794993829977,
+      "firstMetricAt": 1794993820000,
+      "lastMetricAt": 1794993829977,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993830000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 20
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993830007,
+      "lastCounterAt": 1794993839989,
+      "firstMetricAt": 1794993830007,
+      "lastMetricAt": 1794993839989,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993840000",
+      "counters": {
+        "websocket.messages_sent": 196
+      },
+      "rates": {
+        "websocket.send_rate": 20
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993840013,
+      "lastCounterAt": 1794993849930,
+      "firstMetricAt": 1794993840013,
+      "lastMetricAt": 1794993849930,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993850000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 20
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993850010,
+      "lastCounterAt": 1794993859938,
+      "firstMetricAt": 1794993850010,
+      "lastMetricAt": 1794993859938,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993860000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 20
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993860032,
+      "lastCounterAt": 1794993869945,
+      "firstMetricAt": 1794993860032,
+      "lastMetricAt": 1794993869945,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993870000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 20
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993870046,
+      "lastCounterAt": 1794993879955,
+      "firstMetricAt": 1794993870046,
+      "lastMetricAt": 1794993879955,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993880000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 20
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993880050,
+      "lastCounterAt": 1794993889980,
+      "firstMetricAt": 1794993880050,
+      "lastMetricAt": 1794993889980,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993890000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 20
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993890076,
+      "lastCounterAt": 1794993899992,
+      "firstMetricAt": 1794993890076,
+      "lastMetricAt": 1794993899992,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993900000",
+      "counters": {
+        "websocket.messages_sent": 188
+      },
+      "rates": {
+        "websocket.send_rate": 32
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993900098,
+      "lastCounterAt": 1794993906002,
+      "firstMetricAt": 1794993900098,
+      "lastMetricAt": 1794993906002,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993910000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993910002,
+      "lastCounterAt": 1794993916025,
+      "firstMetricAt": 1794993910002,
+      "lastMetricAt": 1794993916025,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993920000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993920021,
+      "lastCounterAt": 1794993926044,
+      "firstMetricAt": 1794993920021,
+      "lastMetricAt": 1794993926044,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993930000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993930036,
+      "lastCounterAt": 1794993936058,
+      "firstMetricAt": 1794993930036,
+      "lastMetricAt": 1794993936058,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993940000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993940052,
+      "lastCounterAt": 1794993946068,
+      "firstMetricAt": 1794993940052,
+      "lastMetricAt": 1794993946068,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993950000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993950068,
+      "lastCounterAt": 1794993956090,
+      "firstMetricAt": 1794993950068,
+      "lastMetricAt": 1794993956090,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993960000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993960086,
+      "lastCounterAt": 1794993966101,
+      "firstMetricAt": 1794993960086,
+      "lastMetricAt": 1794993966101,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993970000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993970104,
+      "lastCounterAt": 1794993976108,
+      "firstMetricAt": 1794993970104,
+      "lastMetricAt": 1794993976108,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993980000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993980117,
+      "lastCounterAt": 1794993986118,
+      "firstMetricAt": 1794993980117,
+      "lastMetricAt": 1794993986118,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794993990000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794993990131,
+      "lastCounterAt": 1794993996140,
+      "firstMetricAt": 1794993990131,
+      "lastMetricAt": 1794993996140,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994000000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994000148,
+      "lastCounterAt": 1794994006147,
+      "firstMetricAt": 1794994000148,
+      "lastMetricAt": 1794994006147,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994010000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994010154,
+      "lastCounterAt": 1794994016154,
+      "firstMetricAt": 1794994010154,
+      "lastMetricAt": 1794994016154,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994020000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994020165,
+      "lastCounterAt": 1794994026172,
+      "firstMetricAt": 1794994020165,
+      "lastMetricAt": 1794994026172,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994030000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994030184,
+      "lastCounterAt": 1794994036192,
+      "firstMetricAt": 1794994030184,
+      "lastMetricAt": 1794994036192,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994040000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994040202,
+      "lastCounterAt": 1794994046201,
+      "firstMetricAt": 1794994040202,
+      "lastMetricAt": 1794994046201,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994050000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994050213,
+      "lastCounterAt": 1794994056226,
+      "firstMetricAt": 1794994050213,
+      "lastMetricAt": 1794994056226,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994060000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994060238,
+      "lastCounterAt": 1794994066239,
+      "firstMetricAt": 1794994060238,
+      "lastMetricAt": 1794994066239,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994070000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994070253,
+      "lastCounterAt": 1794994076268,
+      "firstMetricAt": 1794994070253,
+      "lastMetricAt": 1794994076268,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994080000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994080272,
+      "lastCounterAt": 1794994086282,
+      "firstMetricAt": 1794994080272,
+      "lastMetricAt": 1794994086282,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994090000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994090286,
+      "lastCounterAt": 1794994096306,
+      "firstMetricAt": 1794994090286,
+      "lastMetricAt": 1794994096306,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994100000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994100293,
+      "lastCounterAt": 1794994106320,
+      "firstMetricAt": 1794994100293,
+      "lastMetricAt": 1794994106320,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994110000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994110321,
+      "lastCounterAt": 1794994116347,
+      "firstMetricAt": 1794994110321,
+      "lastMetricAt": 1794994116347,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994120000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994120347,
+      "lastCounterAt": 1794994126365,
+      "firstMetricAt": 1794994120347,
+      "lastMetricAt": 1794994126365,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994130000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994130373,
+      "lastCounterAt": 1794994136374,
+      "firstMetricAt": 1794994130373,
+      "lastMetricAt": 1794994136374,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994140000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994140396,
+      "lastCounterAt": 1794994146397,
+      "firstMetricAt": 1794994140396,
+      "lastMetricAt": 1794994146397,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994150000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994150418,
+      "lastCounterAt": 1794994156411,
+      "firstMetricAt": 1794994150418,
+      "lastMetricAt": 1794994156411,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994160000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994160436,
+      "lastCounterAt": 1794994166432,
+      "firstMetricAt": 1794994160436,
+      "lastMetricAt": 1794994166432,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994170000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994170453,
+      "lastCounterAt": 1794994176441,
+      "firstMetricAt": 1794994170453,
+      "lastMetricAt": 1794994176441,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994180000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994180467,
+      "lastCounterAt": 1794994186458,
+      "firstMetricAt": 1794994180467,
+      "lastMetricAt": 1794994186458,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994190000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994190490,
+      "lastCounterAt": 1794994196486,
+      "firstMetricAt": 1794994190490,
+      "lastMetricAt": 1794994196486,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994200000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994200514,
+      "lastCounterAt": 1794994206498,
+      "firstMetricAt": 1794994200514,
+      "lastMetricAt": 1794994206498,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994210000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994210532,
+      "lastCounterAt": 1794994216503,
+      "firstMetricAt": 1794994210532,
+      "lastMetricAt": 1794994216503,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994220000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 34
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994220545,
+      "lastCounterAt": 1794994226515,
+      "firstMetricAt": 1794994220545,
+      "lastMetricAt": 1794994226515,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994230000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 34
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994230558,
+      "lastCounterAt": 1794994236524,
+      "firstMetricAt": 1794994230558,
+      "lastMetricAt": 1794994236524,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994240000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 34
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994240581,
+      "lastCounterAt": 1794994246537,
+      "firstMetricAt": 1794994240581,
+      "lastMetricAt": 1794994246537,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994250000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 34
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994250605,
+      "lastCounterAt": 1794994256557,
+      "firstMetricAt": 1794994250605,
+      "lastMetricAt": 1794994256557,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994260000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994260607,
+      "lastCounterAt": 1794994266582,
+      "firstMetricAt": 1794994260607,
+      "lastMetricAt": 1794994266582,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994270000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 34
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994270620,
+      "lastCounterAt": 1794994276587,
+      "firstMetricAt": 1794994270620,
+      "lastMetricAt": 1794994276587,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994280000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994280631,
+      "lastCounterAt": 1794994286611,
+      "firstMetricAt": 1794994280631,
+      "lastMetricAt": 1794994286611,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994290000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 34
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994290651,
+      "lastCounterAt": 1794994296618,
+      "firstMetricAt": 1794994290651,
+      "lastMetricAt": 1794994296618,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994300000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994300659,
+      "lastCounterAt": 1794994306634,
+      "firstMetricAt": 1794994300659,
+      "lastMetricAt": 1794994306634,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994310000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994310673,
+      "lastCounterAt": 1794994316654,
+      "firstMetricAt": 1794994310673,
+      "lastMetricAt": 1794994316654,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994320000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994320693,
+      "lastCounterAt": 1794994326668,
+      "firstMetricAt": 1794994320693,
+      "lastMetricAt": 1794994326668,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994330000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 34
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994330718,
+      "lastCounterAt": 1794994336686,
+      "firstMetricAt": 1794994330718,
+      "lastMetricAt": 1794994336686,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994340000",
+      "counters": {
+        "websocket.messages_sent": 200
+      },
+      "rates": {
+        "websocket.send_rate": 33
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994340726,
+      "lastCounterAt": 1794994346702,
+      "firstMetricAt": 1794994340726,
+      "lastMetricAt": 1794994346702,
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "period": "1794994350000",
+      "counters": {
+        "websocket.messages_sent": 100,
+        "vusers.failed": 0,
+        "vusers.completed": 100
+      },
+      "rates": {
+        "websocket.send_rate": 100
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1794994350739,
+      "firstHistogramAt": 1794994355756,
+      "lastCounterAt": 1794994356719,
+      "lastHistogramAt": 1794994356719,
+      "firstMetricAt": 1794994350739,
+      "lastMetricAt": 1794994356719,
+      "summaries": {
+        "vusers.session_length": {
+          "min": 612903.8,
+          "max": 613051,
+          "count": 100,
+          "mean": 612978.6,
+          "p50": 615625.7,
+          "median": 615625.7,
+          "p75": 615625.7,
+          "p90": 615625.7,
+          "p95": 615625.7,
+          "p99": 615625.7,
+          "p999": 615625.7
+        }
+      },
+      "histograms": {
+        "vusers.session_length": {
+          "min": 612903.8,
+          "max": 613051,
+          "count": 100,
+          "mean": 612978.6,
+          "p50": 615625.7,
+          "median": 615625.7,
+          "p75": 615625.7,
+          "p90": 615625.7,
+          "p95": 615625.7,
+          "p99": 615625.7,
+          "p999": 615625.7
+        }
+      }
+    }
+  ]
+}
