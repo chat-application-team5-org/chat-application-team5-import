@@ -186,3 +186,42 @@ The latest LAN result was reported as **300 messages sent, 300 delivered, and ze
 The paced-send change in `scripts/performance-test.js` now spaces clients across each five-second round and its scheduling tests pass. **The paced benchmark has not been tested over LAN.** No raw JSON evidence file for the user-reported synchronized-send result is present in this repository. PERF-1 remains **NOT VERIFIED**: the reported LAN run missed its target, and a paced LAN result plus a separate broadband result have not been recorded.
 
 During the 2026-11-18 verification, the benchmark runner had no `BASE_URL`, so its configured default was loopback (`http://127.0.0.1:3000`). No service was listening on local port 3000, and the previously used LAN endpoint `http://192.168.88.9:3000` failed both a read-only health request and a TCP reachability check. The runner also had no `MONGO_URI` or `PERF_ALLOW_WRITES=1` configured. The updated LAN benchmark was therefore **NOT RUN**; no messages were written and no new latency result was collected.
+
+## 14. Artillery WebSocket load test � 2026-11-18
+
+The Artillery 2 WebSocket scenario was executed against the local application using the dedicated `chatapp_perf_artillery` test database. A separate two-client smoke test completed before the full load test.
+
+### Smoke test
+
+| Measurement | Result |
+|---|---:|
+| Virtual users created | 2 |
+| Virtual users completed | 2 |
+| Failed virtual users | 0 |
+| WebSocket messages sent | 4 |
+| Result | Completed |
+
+Raw report: `docs/ca45-artillery-smoke-2026-11-18.json`.
+
+### Full 100-client run
+
+| Measurement | Result |
+|---|---:|
+| Virtual users created | 100 |
+| Virtual users completed | 100 |
+| Failed virtual users | 0 |
+| WebSocket messages sent | 12,100 |
+| Average reported send rate | 32 messages/second |
+| Total run duration | 10 minutes 15 seconds |
+| Mean virtual-user session length | 612,978.6 ms |
+| p95 virtual-user session length | 615,625.7 ms |
+
+**Result: PASS for Artillery virtual-user session completion and client-side message-send execution.**
+
+Raw report: `docs/ca45-artillery-chat-2026-11-18.json`.
+
+### Scope and limitations
+
+This Artillery scenario verifies that 100 virtual users completed their WebSocket sessions and that the client-side sends were executed without reported virtual-user failures. It does not independently count server-side recipient deliveries, acknowledgements, message persistence, or end-to-end delivery latency.
+
+Therefore, these results do not replace the delivery-count and latency evidence required by PERF-1 or PERF-2. The separate 2026-11-17 WSL2 benchmark remains the evidence for PERF-2 acceptance. PERF-1 LAN and broadband requirements remain open.

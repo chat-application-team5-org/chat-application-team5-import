@@ -1,0 +1,35 @@
+config:
+  target: "{{ $env.ARTILLERY_WS_URL }}"
+  phases:
+    - name: Two-client smoke test
+      duration: 1
+      arrivalCount: 2
+      maxVusers: 2
+  ws:
+    origin: "{{ $env.ALLOWED_ORIGIN }}"
+    timeout: 10
+  payload:
+    path: .ca45-artillery-chat-users.csv
+    fields:
+      - token
+      - conversationId
+      - username
+    order: sequence
+    skipHeader: true
+
+scenarios:
+  - name: Authenticate and send one private message
+    engine: ws
+    flow:
+      - connect: "{{ $env.ARTILLERY_WS_URL }}"
+      - send:
+          type: auth
+          payload:
+            token: "{{ token }}"
+      - think: 2
+      - send:
+          type: message:send
+          payload:
+            conversationId: "{{ conversationId }}"
+            content: "CA-45 smoke test {{ username }}"
+            clientMsgId: "ca45-smoke-{{ username }}"
