@@ -422,7 +422,11 @@ function attachGateway(server, {
             throw new Error('Token did not resolve to a user');
           }
 
-          const user = await User.findById(userId).select('_id username displayName');
+          // JWT authentication must not depend on an optional profile lookup.
+          // Only query Mongoose when the subject is a valid MongoDB ObjectId.
+          const user = mongoose.isValidObjectId(userId)
+            ? await User.findById(userId).select('_id username displayName')
+            : null;
           const profile = user
             ? { username: user.username, displayName: user.displayName || user.username }
             : {};
