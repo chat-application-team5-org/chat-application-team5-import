@@ -86,7 +86,7 @@ async function loginUser(body) {
   return {
     token,
     expiresIn: decoded.exp - issuedAt,
-    user: { userId: String(user._id), username: user.username, displayName: user.username },
+    user: { userId: String(user._id), username: user.username, displayName: user.displayName || user.username },
   };
 }
 

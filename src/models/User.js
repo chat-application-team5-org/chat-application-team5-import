@@ -1,3 +1,4 @@
+
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema(
@@ -16,13 +17,35 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       unique: true,
     },
+    displayName: {
+      type: String,
+      trim: true,
+      maxlength: 40,
+      default: '',
+    },
+    statusMessage: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      default: '',
+    },
     passwordHash: {
       type: String,
       required: true,
     },
-    failedLoginAttempts: { type: Number, default: 0, min: 0 },
-    lockUntil: { type: Date, default: null },
-    lastSeen: { type: Date, default: null },
+    failedLoginAttempts: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    lockUntil: {
+      type: Date,
+      default: null,
+    },
+    lastSeen: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

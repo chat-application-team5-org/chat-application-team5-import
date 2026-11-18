@@ -6,6 +6,12 @@ const jwt = require('jsonwebtoken');
 
 jest.mock('../src/modules/group/groupService', () => ({
   createGroup: jest.fn(),
+  groupSnapshot: jest.fn((group) => ({
+    conversationId: String(group._id),
+    type: 'GROUP',
+    name: group.name,
+    participants: group.participants.map(String),
+  })),
 }));
 
 jest.mock('../src/modules/group/groupEvents', () => ({
