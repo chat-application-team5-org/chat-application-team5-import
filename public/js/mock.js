@@ -139,6 +139,62 @@ window.Chat = window.Chat || {};
       );
     }
 
+    // Group information and admin actions for the group demo.
+    const groupPath = path.match(/^\\/api\\/groups\\/([^/]+)(?:\\/(members(?:\\/([^/]+))?|leave))?$/);
+    if (groupPath && groupPath[1] === 'c2') {
+      const group = conversations.find((item) => item._id === 'c2' && item.type === 'GROUP');
+      if (!group) throw fail(404, 'NOT_FOUND', 'Group not found');
+      const currentUserId = 'u1';
+
+      if (method === 'GET' && !groupPath[2]) {
+        return {
+          conversation: {
+            conversationId: 'c2',
+            type: 'GROUP',
+            name: group.name,
+            createdBy: 'u1',
+            members: group.participants.map((userId) => {
+              const user = userId === 'u1'
+                ? { username: 'you', displayName: 'You' }
+                : users.find((candidate) => candidate.userId === userId) || { username: userId };
+              return {
+                userId,
+                username: user.username,
+                displayName: user.displayName || user.username,
+                role: userId === 'u1' ? 'ADMIN' : 'MEMBER',
+              };
+            }),
+          },
+        };
+      }
+
+      if (method === 'PATCH' && !groupPath[2]) {
+        group.name = String(body.name || '').trim();
+        return { conversation: { conversationId: 'c2', type: 'GROUP', name: group.name, participants: group.participants.slice() } };
+      }
+
+      if (method === 'POST' && groupPath[2] === 'members') {
+        const user = users.find((candidate) => candidate.userId === body.userId);
+        if (!user) throw fail(404, 'NOT_FOUND', 'User not found');
+        if (group.participants.includes(user.userId)) throw fail(409, 'ALREADY_MEMBER', 'This user is already a group member.');
+        group.participants.push(user.userId);
+        return { conversation: { conversationId: 'c2', type: 'GROUP', name: group.name, participants: group.participants.slice() } };
+      }
+
+      if (method === 'DELETE' && groupPath[2] === 'members' && groupPath[3]) {
+        if (group.participants.length <= 3) throw fail(400, 'VALIDATION_ERROR', 'A group must have at least three members.');
+        group.participants = group.participants.filter((userId) => userId !== groupPath[3]);
+        return { conversation: { conversationId: 'c2', type: 'GROUP', name: group.name, participants: group.participants.slice() } };
+      }
+
+      if (method === 'POST' && groupPath[2] === 'leave') {
+        group.participants = group.participants.filter((userId) => userId !== currentUserId);
+        const deleted = group.participants.length < 3;
+        if (deleted) conversations.splice(conversations.indexOf(group), 1);
+        return { left: true, deleted };
+      }
+    }
+
     // Get messages for a conversation
     const messageMatch = path.match(
       /^\/api\/conversations\/([^/]+)\/messages/
