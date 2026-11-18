@@ -125,3 +125,87 @@ a { color: var(--primary); }
 @media (max-width: 480px) {
   #conn-text { display: none; } /* the dot stays; its colour and tooltip show the state */
 }
+
+
+/* Group information panel (CA-32) */
+.chat-heading { flex: 1; min-width: 0; }
+.group-info-btn { margin-left: auto; white-space: nowrap; }
+.group-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-width: 560px;
+  max-height: min(82vh, 760px);
+  overflow-y: auto;
+  padding: 22px;
+}
+.group-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.group-dialog-header h2 { margin: 0 0 4px; }
+.group-info-feedback {
+  min-height: 1.25em;
+  margin: 10px 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.group-info-feedback[data-state="error"] { color: var(--danger); }
+.group-admin-controls {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f8faff;
+}
+.group-action-form { display: grid; gap: 6px; }
+.group-action-row { display: flex; gap: 8px; }
+.group-action-row input { flex: 1; min-width: 0; }
+.group-add-results { display: grid; gap: 6px; }
+.group-add-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+.group-help { margin: 2px 0 0; color: var(--muted); font-size: 0.8rem; }
+.group-members-heading { margin: 18px 0 8px; }
+.group-member-list { list-style: none; margin: 0; padding: 0; }
+.group-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.group-member-identity { display: grid; gap: 2px; min-width: 0; }
+.group-member-username { color: var(--muted); font-size: 0.82rem; }
+.group-member-actions { display: flex; align-items: center; gap: 8px; }
+.role-pill {
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: #edf0f6;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.role-admin { background: #e8eefb; color: var(--primary); }
+.btn-small { padding: 5px 9px; font-size: 0.82rem; }
+.btn-danger { background: #fff; color: var(--danger); border-color: #d9aaa6; }
+.btn-danger:hover:not(:disabled) { background: #fff2f1; }
+.btn-danger:disabled { opacity: .45; cursor: not-allowed; }
+.group-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+@media (max-width: 480px) {
+  .group-dialog { padding: 16px; }
+  .group-action-row { align-items: stretch; flex-direction: column; }
+  .group-member-row { align-items: flex-start; }
+  .group-member-actions { flex-direction: column; align-items: flex-end; }
+}
