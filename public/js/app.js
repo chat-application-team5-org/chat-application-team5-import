@@ -894,7 +894,7 @@
       const name = document.createElement('div');
       name.className = 'conv-name';
       name.textContent =
-        Chat.names[user.userId] || user.userId;
+        user.username || Chat.names[user.userId] || user.userId;
 
       const status = document.createElement('div');
       status.className = 'conv-last';
@@ -914,8 +914,8 @@
       li.setAttribute('aria-label', `Start conversation with ${name.textContent}`);
       const startChat = () => startPrivateConversation({
         userId: user.userId,
-        username: Chat.names[user.userId] || user.userId,
-        displayName: Chat.names[user.userId] || user.userId,
+        username: user.username || Chat.names[user.userId] || user.userId,
+        displayName: user.username || Chat.names[user.userId] || user.userId,
       }, li, status);
       li.onclick = startChat;
       li.onkeydown = (event) => {
@@ -933,15 +933,21 @@
   ws.on('presence:update', (p) => {
     if (!p || !p.userId) return;
 
+    // Cache usernames supplied by the server; keep userId only for internal lookups.
+    const username = typeof p.username === 'string' ? p.username.trim() : '';
+    if (username) Chat.names[p.userId] = username;
+
     if (p.status === 'online') {
       presenceUsers.set(p.userId, {
         userId: p.userId,
+        username,
         status: 'online',
         lastSeen: null,
       });
     } else if (p.status === 'offline') {
       presenceUsers.set(p.userId, {
         userId: p.userId,
+        username,
         status: 'offline',
         lastSeen: p.lastSeen || null,
       });

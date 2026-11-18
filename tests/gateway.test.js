@@ -8,6 +8,7 @@ jest.mock('../src/modules/messaging/messageService', () => ({
   markMessagesRead: jest.fn(),
 }));
 jest.mock('../src/models/User', () => ({
+  findById: jest.fn(),
   findByIdAndUpdate: jest.fn().mockResolvedValue({}),
 }));
 
@@ -63,6 +64,13 @@ beforeEach(() => {
   loadPendingMessagesForRecipient.mockReset().mockResolvedValue([]);
   markMessageDelivered.mockReset();
   markMessagesRead.mockReset();
+  User.findById.mockReset().mockImplementation((id) => ({
+    select: jest.fn().mockResolvedValue({
+      _id: id,
+      username: String(id),
+      displayName: '',
+    }),
+  }));
   User.findByIdAndUpdate.mockReset().mockResolvedValue({});
   Conversation.findById.mockReset();
 });
@@ -337,6 +345,8 @@ describe('Online/offline presence (CA-33)', () => {
 
       expect(presence.payload).toEqual({
         userId: 'bob',
+        username: 'bob',
+        displayName: 'bob',
         status: 'online',
         lastSeen: null,
       });
@@ -433,6 +443,8 @@ expect(presence).toBeDefined();
 
       expect(presence.payload).toEqual({
         userId: 'alice',
+        username: 'alice',
+        displayName: 'alice',
         status: 'online',
         lastSeen: null,
       });

@@ -80,6 +80,8 @@ function attachGateway(server, {
 
   // userId -> set of that user's open sockets (CA-22)
   const online = new Map();
+  // Cache safe public identity fields so presence events never expose only raw database IDs.
+  const onlineProfiles = new Map();
   const messageRateLimiter = createMessageRateLimiter();
   // Keep disconnected users' windows until they expire, but reclaim idle entries.
   const rateCleanup = setInterval(() => messageRateLimiter.purge(), 10000);
@@ -93,14 +95,31 @@ function attachGateway(server, {
     });
   });
 
-  function register(socket, userId) {
-    socket.userId = userId;
+  function presencePayload(userId, status, lastSeen = null) {
+    const id = String(userId);
+    const profile = onlineProfiles.get(id) || {};
+    return {
+      userId: id,
+      username: profile.username || id,
+      displayName: profile.displayName || profile.username || id,
+      status,
+      lastSeen: lastSeen ? lastSeen.toISOString() : null,
+    };
+  }
 
-    if (!online.has(userId)) {
+  function register(socket, userId, profile = {}) {
+    const id = String(userId);
+    socket.userId = id;
+    onlineProfiles.set(id, {
+      username: profile.username || id,
+      displayName: profile.displayName || profile.username || id,
+    });
+
+    if (!online.has(id)) {
       online.set(userId, new Set());
     }
 
-    const sockets = online.get(userId);
+    const sockets = online.get(id);
     const wasOffline = sockets.size === 0;
 
     sockets.add(socket);
@@ -111,12 +130,8 @@ function attachGateway(server, {
     }
 
     for (const [onlineUserId] of online) {
-      if (onlineUserId !== userId) {
-        send(socket, 'presence:update', {
-          userId: String(onlineUserId),
-          status: 'online',
-          lastSeen: null,
-        });
+      if (onlineUserId !== id) {
+        send(socket, 'presence:update', presencePayload(onlineUserId, 'online'));
       }
     }
   }
@@ -149,16 +164,13 @@ function attachGateway(server, {
         }
 
         broadcastPresence(userId, 'offline', lastSeen);
+        onlineProfiles.delete(userId);
       }
     }
   }
 
   function broadcastPresence(userId, status, lastSeen = null) {
-    const payload = {
-      userId: String(userId),
-      status,
-      lastSeen: lastSeen ? lastSeen.toISOString() : null,
-    };
+    const payload = presencePayload(userId, status, lastSeen);
 
     wss.clients.forEach((client) => {
       if (
@@ -410,7 +422,15 @@ function attachGateway(server, {
             throw new Error('Token did not resolve to a user');
           }
 
-          register(socket, userId);
+          // JWT authentication must not depend on an optional profile lookup.
+          // Only query Mongoose when the subject is a valid MongoDB ObjectId.
+          const user = mongoose.isValidObjectId(userId)
+            ? await User.findById(userId).select('_id username displayName')
+            : null;
+          const profile = user
+            ? { username: user.username, displayName: user.displayName || user.username }
+            : {};
+          register(socket, userId, profile);
           clearTimeout(authTimeout);
 
           logger.info('websocket_auth_success', {
