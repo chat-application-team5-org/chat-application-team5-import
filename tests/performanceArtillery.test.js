@@ -20,7 +20,8 @@ describe('CA-45 Artillery WebSocket test', () => {
       type: 'auth',
       payload: { token: '{{ token }}' },
     });
-    expect(flow[2].wait.match).toEqual({ json: '$.type', value: 'auth:ok' });
+    expect(flow.some((step) => step.wait)).toBe(false);
+    expect(flow[2].think).toBe(2);
     expect(flow[4].loop[0].send).toMatchObject({
       type: 'message:send',
       payload: { conversationId: '{{ conversationId }}' },
