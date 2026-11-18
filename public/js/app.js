@@ -317,6 +317,7 @@
 
     $('chat-title').textContent = c.name;
     $('chat-sub').textContent = c.type === 'GROUP' ? 'Group' : '';
+    $('group-info-btn').hidden = c.type !== 'GROUP';
 
     Chat.messages.open(c.conversationId, []);
 
@@ -351,6 +352,252 @@
     }
   }
 
+
+  // ---------- Group information and administration (CA-32) ----------
+  let groupInfoState = null;
+  let groupInfoRequestId = 0;
+  let groupSearchTimer = null;
+  let groupSearchRequestId = 0;
+
+  function setGroupInfoFeedback(message, isError = false) {
+    const feedback = $('group-info-feedback');
+    feedback.textContent = message || '';
+    feedback.dataset.state = isError ? 'error' : 'info';
+  }
+
+  function renderGroupInfo(details) {
+    groupInfoState = details;
+    $('group-info-title').textContent = details.name;
+    $('group-info-description').textContent =
+      `${details.members.length} members · Created by ${details.members.find((member) => member.userId === details.createdBy)?.displayName || 'a member'}`;
+
+    const me = String((api.session.user || {}).userId || '');
+    const isAdmin = details.members.some(
+      (member) => member.userId === me && member.role === 'ADMIN'
+    );
+    $('group-admin-controls').hidden = !isAdmin;
+    $('group-rename-input').value = details.name;
+    $('group-leave-btn').hidden = !details.members.some((member) => member.userId === me);
+    $('group-add-search').value = '';
+    $('group-add-results').replaceChildren();
+
+    const list = $('group-member-list');
+    list.replaceChildren();
+    details.members.forEach((member) => {
+      const item = document.createElement('li');
+      item.className = 'group-member-row';
+
+      const identity = document.createElement('div');
+      identity.className = 'group-member-identity';
+      const displayName = document.createElement('strong');
+      displayName.textContent = member.displayName || member.username;
+      const username = document.createElement('span');
+      username.className = 'group-member-username';
+      username.textContent = '@' + member.username;
+      identity.append(displayName, username);
+
+      const actions = document.createElement('div');
+      actions.className = 'group-member-actions';
+      const role = document.createElement('span');
+      role.className = member.role === 'ADMIN' ? 'role-pill role-admin' : 'role-pill';
+      role.textContent = member.role === 'ADMIN' ? 'Admin' : 'Member';
+      actions.appendChild(role);
+
+      if (isAdmin && member.userId !== me) {
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'btn btn-danger btn-small';
+        removeButton.textContent = 'Remove';
+        removeButton.disabled = details.members.length <= 3;
+        removeButton.title = removeButton.disabled
+          ? 'A group must retain at least three members'
+          : `Remove ${member.displayName || member.username}`;
+        removeButton.addEventListener('click', () => removeGroupMember(member));
+        actions.appendChild(removeButton);
+      }
+
+      item.append(identity, actions);
+      list.appendChild(item);
+    });
+
+    if (details.members.length <= 3 && isAdmin) {
+      setGroupInfoFeedback('This group needs at least three members. Add someone before removing a member.');
+    } else {
+      setGroupInfoFeedback('');
+    }
+  }
+
+  async function refreshGroupInfo() {
+    if (!currentConversation || currentConversation.type !== 'GROUP') return;
+    const conversationId = currentConversation.conversationId;
+    const requestId = ++groupInfoRequestId;
+    try {
+      const details = await api.getGroupDetails(conversationId);
+      if (
+        requestId !== groupInfoRequestId ||
+        !currentConversation ||
+        currentConversation.conversationId !== conversationId
+      ) return;
+      renderGroupInfo(details);
+    } catch (error) {
+      if (requestId === groupInfoRequestId) {
+        setGroupInfoFeedback(error.message || 'Could not load group information.', true);
+      }
+    }
+  }
+
+  async function openGroupInfo() {
+    if (!currentConversation || currentConversation.type !== 'GROUP') return;
+    if (!$('group-info-dialog').open) $('group-info-dialog').showModal();
+    setGroupInfoFeedback('Loading group information...');
+    await refreshGroupInfo();
+  }
+
+  function closeGroupInfo() {
+    groupInfoRequestId += 1;
+    groupSearchRequestId += 1;
+    if (groupSearchTimer) {
+      clearTimeout(groupSearchTimer);
+      groupSearchTimer = null;
+    }
+    if ($('group-info-dialog').open) $('group-info-dialog').close();
+  }
+
+  function closeCurrentGroup(message) {
+    closeGroupInfo();
+    currentConversation = null;
+    historyState = {
+      conversationId: null,
+      hasMore: false,
+      nextCursor: null,
+      loading: false,
+    };
+    $('group-info-btn').hidden = true;
+    $('chat-title').textContent = 'Select a conversation';
+    $('chat-sub').textContent = '';
+    $('typing-indicator').textContent = '';
+    $('message-input').disabled = true;
+    $('send-btn').disabled = true;
+    $('message-pane').replaceChildren(emptyItem('Select a conversation or search for a user to start chatting.'));
+    $('chat-view').dataset.pane = 'list';
+    void loadConversations();
+    if (message) ui.toast('info', message);
+  }
+
+  async function removeGroupMember(member) {
+    if (!currentConversation || !groupInfoState) return;
+    const conversationId = currentConversation.conversationId;
+    try {
+      await api.removeGroupMember(conversationId, member.userId);
+      ui.toast('success', `${member.displayName || member.username} removed from the group.`);
+      await refreshGroupInfo();
+      await loadConversations();
+    } catch (error) {
+      setGroupInfoFeedback(error.message || 'Could not remove this member.', true);
+    }
+  }
+
+  $('group-info-btn').addEventListener('click', () => {
+    void openGroupInfo();
+  });
+  $('group-info-close').addEventListener('click', closeGroupInfo);
+
+  $('group-rename-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!currentConversation || !groupInfoState) return;
+    const name = $('group-rename-input').value.trim();
+    if (name.length < 3 || name.length > 50) {
+      setGroupInfoFeedback('Group name must contain between 3 and 50 characters.', true);
+      return;
+    }
+    try {
+      const updated = await api.renameGroup(currentConversation.conversationId, name);
+      currentConversation.name = updated.name;
+      $('chat-title').textContent = updated.name;
+      ui.toast('success', 'Group name updated.');
+      await loadConversations();
+      await refreshGroupInfo();
+    } catch (error) {
+      setGroupInfoFeedback(error.message || 'Could not rename the group.', true);
+    }
+  });
+
+  $('group-add-search').addEventListener('input', () => {
+    const query = $('group-add-search').value.trim();
+    const requestId = ++groupSearchRequestId;
+    if (groupSearchTimer) clearTimeout(groupSearchTimer);
+    const results = $('group-add-results');
+    results.replaceChildren();
+    if (!query) return;
+
+    groupSearchTimer = setTimeout(async () => {
+      try {
+        const users = await api.searchUsers(query);
+        if (requestId !== groupSearchRequestId) return;
+        const existing = new Set((groupInfoState?.members || []).map((member) => member.userId));
+        const candidates = (users || []).filter((user) => !existing.has(String(user.userId)));
+        if (!candidates.length) {
+          const empty = document.createElement('p');
+          empty.className = 'group-help';
+          empty.textContent = 'No new users found.';
+          results.replaceChildren(empty);
+          return;
+        }
+        results.replaceChildren();
+        candidates.forEach((user) => {
+          const row = document.createElement('div');
+          row.className = 'group-add-result';
+          const label = document.createElement('span');
+          label.textContent = `${user.displayName || user.username} (@${user.username})`;
+          const addButton = document.createElement('button');
+          addButton.type = 'button';
+          addButton.className = 'btn btn-primary btn-small';
+          addButton.textContent = 'Add';
+          addButton.addEventListener('click', async () => {
+            addButton.disabled = true;
+            try {
+              await api.addGroupMember(currentConversation.conversationId, user.userId);
+              $('group-add-search').value = '';
+              results.replaceChildren();
+              ui.toast('success', `${user.displayName || user.username} added to the group.`);
+              await refreshGroupInfo();
+              await loadConversations();
+            } catch (error) {
+              addButton.disabled = false;
+              setGroupInfoFeedback(error.message || 'Could not add this member.', true);
+            }
+          });
+          row.append(label, addButton);
+          results.appendChild(row);
+        });
+      } catch (error) {
+        if (requestId === groupSearchRequestId) {
+          setGroupInfoFeedback(error.message || 'User search failed.', true);
+        }
+      }
+    }, 250);
+  });
+
+  $('group-leave-btn').addEventListener('click', async () => {
+    if (!currentConversation) return;
+    const conversationId = currentConversation.conversationId;
+    const confirmed = window.confirm('Leave this group? You will stop receiving its messages.');
+    if (!confirmed) return;
+    try {
+      const result = await api.leaveGroup(conversationId);
+      closeCurrentGroup(result.deleted
+        ? 'You left the group. It was deleted because fewer than three members remained.'
+        : 'You left the group.');
+    } catch (error) {
+      setGroupInfoFeedback(error.message || 'Could not leave the group.', true);
+    }
+  });
+
+  $('group-info-dialog').addEventListener('close', () => {
+    groupInfoRequestId += 1;
+  });
+
+  
   async function loadOlderMessages() {
     const state = historyState;
     const conversation = currentConversation;
@@ -691,14 +938,39 @@
     renderPresence();
   });
 
-    // CA-29: Refresh conversations when a user is added to a group.
+    // CA-32: Keep conversations and the group info panel synchronized.
   ws.on('group:update', async (payload) => {
-    if (!payload || payload.action !== 'ADDED') return;
+    if (!payload) return;
+    const groupId = payload.conversation && payload.conversation.conversationId;
+    const me = String((api.session.user || {}).userId || '');
+    const affectsCurrent = Boolean(
+      currentConversation &&
+      currentConversation.type === 'GROUP' &&
+      groupId === currentConversation.conversationId
+    );
+    const removedSelf = (
+      (payload.action === 'REMOVED' || payload.action === 'LEFT') &&
+      String(payload.memberId) === me
+    );
 
-    try {
-      await loadConversations();
-    } catch (error) {
-      console.error('Failed to refresh group conversations:', error);
+    await loadConversations();
+    if (!affectsCurrent) return;
+
+    if (payload.deleted || removedSelf) {
+      closeCurrentGroup(
+        payload.deleted
+          ? 'This group is no longer available.'
+          : 'You are no longer a member of this group.'
+      );
+      return;
+    }
+
+    if (payload.conversation && payload.conversation.name) {
+      currentConversation.name = payload.conversation.name;
+      $('chat-title').textContent = payload.conversation.name;
+    }
+    if ($('group-info-dialog').open) {
+      await refreshGroupInfo();
     }
   });
 
