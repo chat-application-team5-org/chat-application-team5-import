@@ -130,6 +130,7 @@ a { color: var(--primary); }
 /* Group information panel (CA-32) */
 .chat-heading { flex: 1; min-width: 0; }
 .group-info-btn { margin-left: auto; white-space: nowrap; }
+.chat-top .group-info-btn { color: var(--primary); border-color: var(--border); }
 .group-dialog {
   width: min(560px, calc(100vw - 32px));
   max-width: 560px;
