@@ -283,6 +283,9 @@
   }
 
   async function openConversation(c) {
+    if (currentConversation && currentConversation.conversationId !== c.conversationId) {
+      closeGroupInfo();
+    }
     if (remoteTypingTimeout) {
       clearTimeout(remoteTypingTimeout);
       remoteTypingTimeout = null;
