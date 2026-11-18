@@ -26,10 +26,12 @@ scenarios:
           type: auth
           payload:
             token: "{{ token }}"
-      - wait:
-          match:
-            json: "$.type"
-            value: "auth:ok"
+      # The gateway sends presence:update frames during registration before
+      # auth:ok. Artillery's WS wait/match handler can invoke its callback more
+      # than once when unrelated frames arrive, so do not use wait/match here.
+      # This delay lets registration complete; authentication success is
+      # corroborated by the gateway's auth logs and successful message events.
+      - think: 2
       # Allow the one-second arrival phase to bring all 100 clients online
       # before message traffic starts.
       - think: 10
