@@ -7,7 +7,6 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 
 const USER_COUNT = 100;
-const PASSWORD = 'ArtilleryCheck123';
 const FIXTURE_PATH = path.join(__dirname, '.ca45-artillery-chat-users.csv');
 const REQUEST_TIMEOUT_MS = 15000;
 
@@ -45,11 +44,12 @@ function validateSettings() {
   if (databaseName !== 'chatapp_perf_artillery') {
     throw new Error('PERF_DB_NAME must explicitly be chatapp_perf_artillery for this test fixture helper.');
   }
+  const password = requiredEnv('PERF_TEST_PASSWORD');
   if (fs.existsSync(FIXTURE_PATH)) {
     throw new Error(`Refusing to overwrite existing fixture file: ${FIXTURE_PATH}`);
   }
 
-  return { baseUrl: baseUrl.origin + baseUrl.pathname.replace(/\/$/, ''), databaseName };
+  return { baseUrl: baseUrl.origin + baseUrl.pathname.replace(/\/$/, ''), databaseName, password };
 }
 
 async function requestJson(baseUrl, route, { method = 'GET', token, body } = {}) {
@@ -81,7 +81,7 @@ function csvCell(value) {
 }
 
 async function main() {
-  const { baseUrl, databaseName } = validateSettings();
+  const { baseUrl, databaseName, password } = validateSettings();
   const health = await requestJson(baseUrl, '/health');
   if (!health || health.status !== 'ok' || health.db !== 'connected') {
     throw new Error('The application health check did not report a connected database; no fixtures were created.');
@@ -95,11 +95,11 @@ async function main() {
     const username = `${usernamePrefix}_${String(index).padStart(3, '0')}`;
     const registered = await requestJson(baseUrl, '/api/auth/register', {
       method: 'POST',
-      body: { username, email: `${username}@example.test`, password: PASSWORD },
+      body: { username, email: `${username}@example.test`, password },
     });
     const loggedIn = await requestJson(baseUrl, '/api/auth/login', {
       method: 'POST',
-      body: { identifier: username, password: PASSWORD },
+      body: { identifier: username, password },
     });
     users.push({ username, userId: registered.userId, token: loggedIn.token });
   }

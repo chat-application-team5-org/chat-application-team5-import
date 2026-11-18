@@ -214,7 +214,10 @@ Raw report: `docs/ca45-artillery-smoke-2026-11-18.json`.
 | Average reported send rate | 32 messages/second |
 | Total run duration | 10 minutes 15 seconds |
 | Mean virtual-user session length | 612,978.6 ms |
-| p95 virtual-user session length | 615,625.7 ms |
+| Maximum virtual-user session length | 613,051 ms |
+| Artillery-reported p95 session length | 615,625.7 ms |
+
+The aggregate JSON also reports p50 and p99 session length as 615,625.7 ms, which is greater than its reported maximum of 613,051 ms. These percentile fields are internally inconsistent and are not treated as valid performance measurements.
 
 **Result: PASS for Artillery virtual-user session completion and client-side message-send execution.**
 

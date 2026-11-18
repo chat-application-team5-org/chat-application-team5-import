@@ -4,9 +4,9 @@ This procedure maps to the SRS performance requirements and Test Plan cases TC-P
 
 ## Artillery WebSocket messaging test
 
-`scripts/performance-artillery.yml` exercises this application's native WebSocket protocol. Each virtual user opens one connection to `/ws`, sends the `auth` event with a bearer JWT, waits for `auth:ok`, then sends `message:send` events in an authenticated private conversation. The fixture helper creates 100 test accounts and 50 private conversations through the existing REST API, pairing two virtual users per conversation. No application code or protocol has been changed.
+`scripts/performance-artillery.yml` exercises this application's native WebSocket protocol. Each virtual user opens one connection to `/ws`, sends the `auth` event with a bearer JWT, pauses for two seconds, then sends `message:send` events. It does not assert receipt of `auth:ok` or correlate any `message:status`/`message:new` response; the reported Artillery results therefore establish VU completion and client-side sends only. The fixture helper creates 100 test accounts and 50 private conversations through the existing REST API, pairing two virtual users per conversation. No application code or protocol has been changed.
 
-This test writes users, conversations, and messages. It does not clear them afterward. Use only a freshly verified disposable database. The fixture helper requires `PERF_ALLOW_WRITES=1` and `PERF_DB_NAME=chatapp_perf_artillery`; the database name variable is an operator declaration, not a server-side verification. The helper's health check confirms the app is connected but cannot identify the database selected by the running server. Confirm the server's `MONGO_URI` points to the disposable database and verify its collections are empty before preparing fixtures. The generated `scripts/.ca45-artillery-chat-users.csv` file contains test JWTs; it is ignored by Git and must be deleted after the run.
+This test writes users, conversations, and messages. It does not clear them afterward. Use only a freshly verified disposable database. The fixture helper requires `PERF_ALLOW_WRITES=1`, `PERF_DB_NAME=chatapp_perf_artillery`, and an interactively supplied `PERF_TEST_PASSWORD`; the database name variable is an operator declaration, not a server-side verification. The helper's health check confirms the app is connected but cannot identify the database selected by the running server. Confirm the server's `MONGO_URI` points to the disposable database and verify its collections are empty before preparing fixtures. The generated `scripts/.ca45-artillery-chat-users.csv` file contains test JWTs; it is ignored by Git and must be deleted after the run.
 
 ### PowerShell commands
 
@@ -14,7 +14,10 @@ In the terminal that starts the application, point it at the dedicated database 
 
 ```powershell
 $env:MONGO_URI = "mongodb://127.0.0.1:27017/chatapp_perf_artillery"
-$env:JWT_SECRET = "local-performance-test-secret-change-me"
+$secretBytes = New-Object byte[] 32
+[Security.Cryptography.RandomNumberGenerator]::Fill($secretBytes)
+$env:JWT_SECRET = [Convert]::ToBase64String($secretBytes)
+[Array]::Clear($secretBytes, 0, $secretBytes.Length)
 $env:ALLOWED_ORIGIN = "http://localhost:3000"
 npm start
 ```
@@ -33,7 +36,11 @@ $env:ARTILLERY_WS_URL = "ws://localhost:3000/ws"
 $env:ALLOWED_ORIGIN = "http://localhost:3000"
 $env:PERF_DB_NAME = "chatapp_perf_artillery"
 $env:PERF_ALLOW_WRITES = "1"
+$securePassword = Read-Host "Unique disposable test-account password" -AsSecureString
+$passwordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
+try { $env:PERF_TEST_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordPointer) }
 node scripts/prepare-artillery-chat.js
+$env:PERF_TEST_PASSWORD = $null
 npx --yes artillery@2.0.34 run scripts/performance-artillery.yml --output docs/ca45-artillery-chat-2026-11-18.json
 Remove-Item -LiteralPath scripts/.ca45-artillery-chat-users.csv
 ```
