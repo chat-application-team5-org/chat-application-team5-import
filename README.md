@@ -41,6 +41,16 @@ as `MONGO_URI=mongodb://127.0.0.1:27017/chatapp_test_local`; set `JWT_SECRET` in
 the shell before running the command. GitHub Actions provides its own temporary
 MongoDB service for this test.
 
+## Demo videos
+
+### Sprint 1: authentication and 1:1 messaging
+https://github.com/user-attachments/assets/https://github.com/chat-application-team5-org/chat-application-team5-import/blob/main/docs/part3%20deliverables/Team5_Sprint1_Demo.mp4
+
+### Sprint 2: presence, offline delivery, groups and reconnect
+https://github.com/user-attachments/assets/https://github.com/chat-application-team5-org/chat-application-team5-import/blob/main/docs/part3%20deliverables/Team5_Sprint2_Demo.mp4
+
+Full files: [Sprint 1](docs/part3%20deliverables/Team5_Sprint1_Demo.mp4) · [Sprint 2](docs/part3%20deliverables/Team5_Sprint2_Demo.mp4)
+
 ## Sprint 1 API
 
 - `POST /api/auth/register` with `{ "username", "email", "password" }`
